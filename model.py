@@ -82,7 +82,16 @@ class UnsupervisedGraphSage(nn.Module):
         return loss
 
 
-def load_cora():
+def edges2nodes(batch_edges):
+    batch1 = []
+    batch2 = []
+    for node1, node2 in batch_edges:
+        batch1.append(node1)
+        batch2.append(node2)
+    return batch1, batch2
+
+
+def load_icews():
     num_nodes = 2708
     num_feats = 1433
     feat_data = np.zeros((num_nodes, num_feats))
@@ -110,6 +119,7 @@ def load_cora():
 
 
 def run_cora():
+    train_edges = load_icews()
     np.random.seed(1)
     random.seed(1)
     num_nodes = 2708
@@ -135,21 +145,22 @@ def run_cora():
 
     optimizer = torch.optim.SGD(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.7)
     times = []
+
     for batch in range(100):
-        batch_nodes = train[:256]
-        random.shuffle(train)
+        batch_edges = train_edges[:256]
+        random.shuffle(train_edges)
         start_time = time.time()
         optimizer.zero_grad()
-        loss = graphsage.loss(batch_nodes, 
-                Variable(torch.LongTensor(labels[np.array(batch_nodes)])))
+        batch_nodes1, batch_nodes2 = edges2nodes(batch_edges)
+        loss = graphsage.loss(batch_nodes1, batch_nodes2)
         loss.backward()
         optimizer.step()
         end_time = time.time()
         times.append(end_time-start_time)
         print(batch, loss.item())
 
-    val_output = graphsage.forward(val) 
-    print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
+    # val_output = graphsage.forward(val)
+    # print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
     print("Average batch time:", np.mean(times))
 
 

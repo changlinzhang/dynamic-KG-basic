@@ -1,5 +1,5 @@
 import os
-
+import numpy as np
 
 class Triple(object):
 	def __init__(self, head, tail, relation):
@@ -23,7 +23,8 @@ def get_total_number(inPath, fileName):
 			return int(line_split[0]), int(line_split[1])
 
 
-def load_quadruples(inPath, fileName, fileName2=None):
+def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName2 = None):
+	tem = np.load(os.path.join(inPath, temFileName)).tolist()
 	with open(os.path.join(inPath, fileName), 'r') as fr:
 		quadrupleList = []
 		quadrupleTotal = 0
@@ -34,11 +35,13 @@ def load_quadruples(inPath, fileName, fileName2=None):
 			head = int(line_split[0])
 			tail = int(line_split[2])
 			rel = int(line_split[1])
-			time = int(line_split[3])
-			times.add(time)
-
+			time = tem[quadrupleTotal-1]
+			# times.add(time)
 			quadrupleList.append(Quadruple(head, tail, rel, time))
 
+	trainTotal = quadrupleTotal
+	if temFileName2 is not None:
+		tem2 = np.load(os.path.join(inPath, temFileName2)).tolist()
 	if fileName2 is not None:
 		assert quadrupleTotal != 0
 		with open(os.path.join(inPath, fileName2), 'r') as fr:
@@ -48,16 +51,16 @@ def load_quadruples(inPath, fileName, fileName2=None):
 				head = int(line_split[0])
 				tail = int(line_split[2])
 				rel = int(line_split[1])
-				time = int(line_split[3])
-				times.add(time)
+				time = tem2[quadrupleTotal-trainTotal-1]
+				# times.add(time)
 				quadrupleList.append(Quadruple(head, tail, rel, time))
 	times = list(times)
 	times.sort()
-	quadrupleDict = {}
+	tripleDict = {}
 	for quadruple in quadrupleList:
-		quadrupleDict[(quadruple.s, quadruple.o, quadruple.r, quadruple.t)] = True
+		tripleDict[(quadruple.s, quadruple.o, quadruple.r)] = True
 
-	return quadrupleTotal, quadrupleList, quadrupleDict, times
+	return quadrupleTotal, quadrupleList, tripleDict, times
 
 def get_quadruple_t(quads, time):
 	return [quad for quad in quads if quad.t == time]

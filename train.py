@@ -65,7 +65,8 @@ config = Config()
 config.learning_rate = args.learning_rate
 config.hidden1 = args.hidden
 config.dropout = args.dropout
-config.entity_total, config.relation_total = get_total_number('./data/', 'stat_500.txt')
+config.entity_total, config.relation_total = get_total_number('./data/icews14/', 'stat.txt')
+config.time_total = 32
 config.feature_size = args.feature_size
 config.train_iters = args.train_iters
 
@@ -98,7 +99,7 @@ path_name = os.path.join('./model/', filename)
 if os.path.exists(path_name):
     model = torch.load(path_name)
 elif args.model == 0:
-    model = model.Yourmodel(config)
+    model = model.TATransEModel(config)
 
 optimizer = config.optimizer(model.parameters(), lr=config.learning_rate)
 

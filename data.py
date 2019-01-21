@@ -35,7 +35,7 @@ def corrupt_head_filter(quadruple, entityTotal, quadrupleDict):
 	newQuadruple = deepcopy(quadruple)
 	while True:
 		newHead = random.randrange(entityTotal)
-		if (newHead, newQuadruple.o, newQuadruple.r, newQuadruple.t) not in quadrupleDict:
+		if (newHead, newQuadruple.o, newQuadruple.r) not in quadrupleDict:
 			break
 	newQuadruple.s = newHead
 	return newQuadruple
@@ -47,7 +47,7 @@ def corrupt_tail_filter(quadruple, entityTotal, quadrupleDict):
 	newQuadruple = deepcopy(quadruple)
 	while True:
 		newTail = random.randrange(entityTotal)
-		if (newQuadruple.s, newTail, newQuadruple.r, newQuadruple.t) not in quadrupleDict:
+		if (newQuadruple.s, newTail, newQuadruple.r) not in quadrupleDict:
 			break
 	newQuadruple.o = newTail
 	return newQuadruple
@@ -93,3 +93,25 @@ def getBatch_filter_all(quadrupleList, entityTotal, quadrupleDict):
 	ps, po, pr, pt = getFourElements(quadrupleList)
 	ns, no, nr, nt = getFourElements(newQuadrupleList)
 	return ps, po, pr, pt, ns, no, nr, nt
+
+# Sample a batch of #batchSize triples from tripleList,
+# and generate negative samples by corrupting head or tail with equal probabilities,
+# without checking whether false negative samples exist.
+def getBatch_raw_random(quadrupleList, batchSize, entityTotal):
+	oldQuadrupleList = random.sample(quadrupleList, batchSize)
+	newQuadrupleList = [corrupt_head_raw(quadruple, entityTotal) if random.random() < 0.5
+		else corrupt_tail_raw(quadruple, entityTotal) for quadruple in oldQuadrupleList]
+	ph, pt ,pr, pt = getFourElements(oldQuadrupleList)
+	nh, nt, nr, nt = getFourElements(newQuadrupleList)
+	return ph, pt, pr, pt, nh, nt, nr, nt
+
+# Sample a batch of #batchSize triples from tripleList,
+# and generate negative samples by corrupting head or tail with equal probabilities,
+# with checking whether false negative samples exist.
+def getBatch_filter_random(quadrupleList, batchSize, entityTotal, quadrupleDict):
+	oldQuadrupleList = random.sample(quadrupleList, batchSize)
+	newQuadrupleList = [corrupt_head_filter(quadruple, entityTotal, quadrupleDict) if random.random() < 0.5
+		else corrupt_tail_filter(quadruple, entityTotal, quadrupleDict) for quadruple in oldQuadrupleList]
+	ph, pt ,pr, pt = getFourElements(oldQuadrupleList)
+	nh, nt, nr, nt = getFourElements(newQuadrupleList)
+	return ph, pt, pr, pt, nh, nt, nr, nt

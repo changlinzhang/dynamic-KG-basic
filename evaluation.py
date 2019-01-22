@@ -87,20 +87,40 @@ def pairwise_L2_distances(A, B):
 
 
 def evaluation_helper(testList, tripleDict, ent_embeddings,
-    rel_embeddings, filter, head=0):
+    rel_embeddings, tem_embeddings, lstm_embeddings, filter, head=0):
     # embeddings are numpy like
 
     headList = [triple.s for triple in testList]
     tailList = [triple.o for triple in testList]
     relList = [triple.r for triple in testList]
+    temList = [triple.r for triple in testList]
 
     h_e = ent_embeddings[headList]
     t_e = ent_embeddings[tailList]
     r_e = rel_embeddings[relList]
 
+    seq_e = []
+    i = 0
+    for tem in temList:
+        one_seq_e = []
+        one_seq_e.append(r_e[i])
+    for token in tem:
+        token_e = tem_embeddings(token)
+        one_seq_e.append(token_e)
+    seq_e = seq_e.append(one_seq_e)
+
+    rseq_e = []
+    # add LSTM
+    for one_seq_e in seq_e:
+        # unroll to get input for LSTM
+        input_tem = []
+        input_tem.append(seq_e) # expand_dims/unsqueeze, unroll length = 1
+        hidden_tem = lstm_embeddings(input_tem)
+        rseq_e.append(hidden_tem)
+
     # Evaluate the prediction of only head entities
     if head == 1:
-        c_h_e = t_e * r_e
+        c_h_e = t_e * rseq_e
         # c_h_e = t_e - r_e
 
         # dist = pairwise_distances(c_h_e, ent_embeddings, metric='euclidean')
@@ -129,7 +149,7 @@ def evaluation_helper(testList, tripleDict, ent_embeddings,
 
     # Evaluate the prediction of only tail entities
     elif head == 2:
-        c_t_e = h_e * r_e
+        c_t_e = h_e * rseq_e
 
         # dist = pairwise_distances(c_t_e, ent_embeddings, metric='euclidean')
         cosim = cosine_similarity(c_t_e, ent_embeddings)
@@ -150,8 +170,8 @@ def evaluation_helper(testList, tripleDict, ent_embeddings,
 
     # Evaluate the prediction of both head and tail entities
     else:
-        c_t_e = h_e + r_e
-        c_h_e = t_e - r_e
+        c_t_e = h_e + rseq_e
+        c_h_e = t_e - rseq_e
 
         dist = pairwise_distances(c_t_e, ent_embeddings, metric='euclidean')
 
@@ -184,13 +204,14 @@ def evaluation_helper(testList, tripleDict, ent_embeddings,
 
 class MyProcess(multiprocessing.Process):
     def __init__(self, L, tripleDict, ent_embeddings,
-        rel_embeddings, filter, queue=None, head=0):
+        rel_embeddings, tem_embeddings, lstm_embeddings, filter, queue=None, head=0):
         super(MyProcess, self).__init__()
         self.L = L
         self.queue = queue
         self.tripleDict = tripleDict
         self.ent_embeddings = ent_embeddings
         self.rel_embeddings = rel_embeddings
+        self.lstm_embeddings = lstm_embeddings
         self.filter = filter
         self.head = head
 
@@ -199,24 +220,24 @@ class MyProcess(multiprocessing.Process):
             testList = self.queue.get()
             try:
                 self.process_data(testList, self.tripleDict, self.ent_embeddings, self.rel_embeddings,
-                                  self.filter, self.L, self.head)
+                                  self.tem_embeddings, self.lstm_embeddings, self.filter, self.L, self.head)
             except:
                 time.sleep(5)
                 self.process_data(testList, self.tripleDict, self.ent_embeddings, self.rel_embeddings,
-                                  self.filter, self.L, self.head)
+                                  self.tem_embeddings, self.lstm_embeddings, self.filter, self.L, self.head)
             self.queue.task_done()
 
-    def process_data(self, testList, tripleDict, ent_embeddings, rel_embeddings,
+    def process_data(self, testList, tripleDict, ent_embeddings, rel_embeddings, tem_embeddings, lstm_embeddings,
                      filter, L, head):
 
         hit10Count, totalRank, tripleCount = evaluation_helper(testList, tripleDict, ent_embeddings,
-            rel_embeddings, filter, head)
+            rel_embeddings, tem_embeddings, lstm_embeddings, filter, head)
 
         L.append((hit10Count, totalRank, tripleCount))
 
 
 # Use multiprocessing to speed up evaluation
-def evaluation(testList, tripleDict, ent_embeddings, rel_embeddings,
+def evaluation(testList, tripleDict, ent_embeddings, rel_embeddings, tem_embeddings, lstm_embeddings,
                filter, k=0, num_processes=multiprocessing.cpu_count(), head=0):
     # embeddings are numpy like
 
@@ -235,7 +256,7 @@ def evaluation(testList, tripleDict, ent_embeddings, rel_embeddings,
         queue = multiprocessing.JoinableQueue()
         workerList = []
         for i in range(num_processes):
-            worker = MyProcess(L, tripleDict, ent_embeddings, rel_embeddings,
+            worker = MyProcess(L, tripleDict, ent_embeddings, rel_embeddings, tem_embeddings, lstm_embeddings,
                                filter, queue=queue, head=head)
             workerList.append(worker)
             worker.daemon = True

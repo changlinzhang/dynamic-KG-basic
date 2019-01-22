@@ -77,9 +77,7 @@ class TATransEModel(nn.Module):
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)
 		pos_r_e = self.rel_embeddings(pos_r)
-		print(np.shape(pos_r))
-		print(np.shape(pos_tem))
-		# print(np.shape(pos_r_e))
+
 		isFirst = True
 		pos_seq_e = None
 		i = 0
@@ -132,7 +130,7 @@ class TATransEModel(nn.Module):
 				neg_seq_e = torch.cat((neg_seq_e, seq_e.unsqueeze(0)), 0)
 
 		isFirst = True
-		neg_rseq_e = []
+		neg_rseq_e = None
 		for seq_e in neg_seq_e:
 			input_tem = seq_e.unsqueeze(0)
 			hidden_tem = self.lstm(input_tem)
@@ -185,9 +183,6 @@ class TATransEModel(nn.Module):
 		# 	print(np.shape(hidden_tem[0,-1,:]))
 		# 	neg_rseq_e.append(hidden_tem[0,-1,:])
 
-		print(pos_h_e.size())
-		print(pos_rseq_e.size())
-		print(pos_t_e.size())
 		# L1 distance
 		if self.L1_flag:
 			pos = torch.sum(torch.abs(pos_h_e + pos_rseq_e - pos_t_e), 1)

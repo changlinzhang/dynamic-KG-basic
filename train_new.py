@@ -250,12 +250,12 @@ if __name__ == "__main__":
 
 		# agent.append(trainCurve, epoch, total_loss[0])
 
-		if epoch % 1 == 0:
+		if epoch % 10 == 0:
 			now_time = time.time()
 			print(now_time - start_time)
 			print("Train total loss: %d %f" % (epoch, total_loss[0]))
 
-		if epoch % 1 == 0:
+		if epoch % 10 == 0:
 			if config.filter == True:
 				pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_random(validList,
 					config.batch_size, config.entity_total, tripleDict)
@@ -300,7 +300,7 @@ if __name__ == "__main__":
 	# 			lr_decrease_time = 0
 	# 			#if USE_CUDA:
 	# 				#model.cuda()
-    #
+	#
 	# 		# Evaluate on validation set for every 5 epochs
 	# 		elif epoch % 5 == 0:
 	# 			ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
@@ -327,33 +327,33 @@ if __name__ == "__main__":
 	# 						meanrank_not_decrease_time = 0
 	# 			#if USE_CUDA:
 	# 				#model.cuda()
-    #
+	#
 	# 	elif (epoch + 1) % 10 == 0 or epoch == 0:
 	# 		torch.save(model, os.path.join('./model/' + args.dataset, filename))
-    #
+	#
 	# testTotal, testList, testDict = loadTriple('./data/' + args.dataset, 'test2id.txt')
 	# oneToOneTotal, oneToOneList, oneToOneDict = loadTriple('./data/' + args.dataset, 'one_to_one.txt')
 	# oneToManyTotal, oneToManyList, oneToManyDict = loadTriple('./data/' + args.dataset, 'one_to_many.txt')
 	# manyToOneTotal, manyToOneList, manyToOneDict = loadTriple('./data/' + args.dataset, 'many_to_one.txt')
 	# manyToManyTotal, manyToManyList, manyToManyDict = loadTriple('./data/' + args.dataset, 'many_to_many.txt')
-    #
+	#
 	# ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
 	# rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
 	# L1_flag = model.L1_flag
 	# filter = model.filter
-    #
+	#
 	# hit10Test, meanrankTest = evaluation(testList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=0)
-    #
+	#
 	# hit10OneToOneHead, meanrankOneToOneHead = evaluation(oneToOneList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
 	# hit10OneToManyHead, meanrankOneToManyHead = evaluation(oneToManyList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
 	# hit10ManyToOneHead, meanrankManyToOneHead = evaluation(manyToOneList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
 	# hit10ManyToManyHead, meanrankManyToManyHead = evaluation(manyToManyList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
-    #
+	#
 	# hit10OneToOneTail, meanrankOneToOneTail = evaluation(oneToOneList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
 	# hit10OneToManyTail, meanrankOneToManyTail = evaluation(oneToManyList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
 	# hit10ManyToOneTail, meanrankManyToOneTail = evaluation(manyToOneList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
 	# hit10ManyToManyTail, meanrankManyToManyTail = evaluation(manyToManyList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
-    #
+	#
 	# writeList = [filename,
 	# 	'testSet', '%.6f' % hit10Test, '%.6f' % meanrankTest,
 	# 	'one_to_one_head', '%.6f' % hit10OneToOneHead, '%.6f' % meanrankOneToOneHead,
@@ -364,7 +364,7 @@ if __name__ == "__main__":
 	# 	'one_to_many_tail', '%.6f' % hit10OneToManyTail, '%.6f' % meanrankOneToManyTail,
 	# 	'many_to_one_tail', '%.6f' % hit10ManyToOneTail, '%.6f' % meanrankManyToOneTail,
 	# 	'many_to_many_tail', '%.6f' % hit10ManyToManyTail, '%.6f' % meanrankManyToManyTail,]
-    #
+	#
 	# # Write the result into file
 	# with open(os.path.join('./result/', args.dataset + '.txt'), 'a') as fw:
 	# 	fw.write('\t'.join(writeList) + '\n')

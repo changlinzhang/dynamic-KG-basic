@@ -88,36 +88,41 @@ def pairwise_L2_distances(A, B):
 
 def evaluation_helper(testList, tripleDict, ent_embeddings,
     rel_embeddings, tem_embeddings, lstm_embeddings, filter, head=0):
-    # embeddings are numpy like
+    # embeddings are numpy likre
 
     headList = [triple.s for triple in testList]
     tailList = [triple.o for triple in testList]
     relList = [triple.r for triple in testList]
-    temList = [triple.r for triple in testList]
+    temList = [triple.t for triple in testList]
 
     h_e = ent_embeddings[headList]
     t_e = ent_embeddings[tailList]
     r_e = rel_embeddings[relList]
+    print(np.shape(h_e))
+    print(np.shape(r_e))
 
     seq_e = []
     i = 0
     for tem in temList:
         one_seq_e = []
         one_seq_e.append(r_e[i])
-    for token in tem:
-        token_e = tem_embeddings(token)
-        one_seq_e.append(token_e)
-    seq_e = seq_e.append(one_seq_e)
+        for token in tem:
+            token_e = tem_embeddings[token]
+            one_seq_e.append(token_e)
+        seq_e.append(one_seq_e)
 
     rseq_e = []
     # add LSTM
     for one_seq_e in seq_e:
         # unroll to get input for LSTM
         input_tem = []
-        input_tem.append(seq_e) # expand_dims/unsqueeze, unroll length = 1
-        hidden_tem = lstm_embeddings(input_tem)
+        input_tem.append(one_seq_e) # expand_dims/unsqueeze, unroll length = 1
+        input_tem_tensor = torch.Tensor(input_tem)
+        hidden_tem_tensor = lstm_embeddings(input_tem_tensor)
+        hidden_tem = hidden_tem_tensor.data[0]
+        # print(np.shape(hidden_tem))
         rseq_e.append(hidden_tem)
-
+    print(np.shape(rseq_e))
     # Evaluate the prediction of only head entities
     if head == 1:
         c_h_e = t_e * rseq_e
@@ -211,6 +216,7 @@ class MyProcess(multiprocessing.Process):
         self.tripleDict = tripleDict
         self.ent_embeddings = ent_embeddings
         self.rel_embeddings = rel_embeddings
+        self.tem_embeddings = tem_embeddings
         self.lstm_embeddings = lstm_embeddings
         self.filter = filter
         self.head = head

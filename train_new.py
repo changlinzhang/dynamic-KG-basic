@@ -24,7 +24,7 @@ from evaluation import *
 import loss
 import model
 
-from hyperboard import Agent
+# from hyperboard import Agent
 
 USE_CUDA = torch.cuda.is_available()
 
@@ -178,19 +178,20 @@ if __name__ == "__main__":
 
     loss_function = config.loss_function()
 
-    filename = '_'.join(
-        ['l', str(args.learning_rate),
-         'es', str(args.early_stopping_round),
-         'L', str(args.L1_flag),
-         'em', str(args.embedding_size),
-         'nb', str(args.num_batches),
-         'n', str(args.train_times),
-         'm', str(args.margin),
-         'f', str(args.filter),
-         'mo', str(args.momentum),
-         's', str(args.seed),
-         'op', str(args.optimizer),
-         'lo', str(args.loss_type),]) + '_TATransE.ckpt'
+    # filename = '_'.join(
+    #     #     ['l', str(args.learning_rate),
+    #     #      'es', str(args.early_stopping_round),
+    #     #      'L', str(args.L1_flag),
+    #     #      'em', str(args.embedding_size),
+    #     #      'nb', str(args.num_batches),
+    #     #      'n', str(args.train_times),
+    #     #      'm', str(args.margin),
+    #     #      'f', str(args.filter),
+    #     #      'mo', str(args.momentum),
+    #     #      's', str(args.seed),
+    #     #      'op', str(args.optimizer),
+    #     #      'lo', str(args.loss_type),]) + '_TATransE.ckpt'
+    filename = 'TATransE.ckpt'
     path_name = os.path.join('./model/', filename)
     if os.path.exists(path_name):
         model = torch.load(path_name)
@@ -206,137 +207,141 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    trainBatchList = getBatchList(trainList, config.num_batches)
+    # trainBatchList = getBatchList(trainList, config.num_batches)
 
-    for epoch in range(config.train_times):
-        total_loss = floatTensor([0.0])
-        random.shuffle(trainBatchList)
-        for batchList in trainBatchList:
-            if config.filter == True:
-                pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_all(batchList,
-                    config.entity_total, tripleDict)
-            else:
-                pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_all(batchList,
-                    config.entity_total)
-
-            batch_entity_set = set(pos_h_batch + pos_t_batch + neg_h_batch + neg_t_batch)
-            batch_relation_set = set(pos_r_batch + neg_r_batch)
-            batch_entity_list = list(batch_entity_set)
-            batch_relation_list = list(batch_relation_set)
-
-            pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
-            pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
-            pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
-            pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
-            neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
-            neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
-            neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
-            neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
-
-            model.zero_grad()
-            pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
-
-            if args.loss_type == 0:
-                losses = loss_function(pos, neg, margin)
-            else:
-                losses = loss_function(pos, neg)
-            ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-            rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
-            losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings)
-
-            losses.backward()
-            optimizer.step()
-            total_loss += losses.data
-
-        # agent.append(trainCurve, epoch, total_loss[0])
-
-        if epoch % 10 == 0:
-            now_time = time.time()
-            print(now_time - start_time)
-            print("Train total loss: %d %f" % (epoch, total_loss[0]))
-
-        if epoch % 10 == 0:
-            if config.filter == True:
-                pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_random(validList,
-                    config.batch_size, config.entity_total, tripleDict)
-            else:
-                pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_random(validList,
-                    config.batch_size, config.entity_total)
-            pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
-            pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
-            pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
-            pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
-            neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
-            neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
-            neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
-            neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
-
-            pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
-
-            if args.loss_type == 0:
-                losses = loss_function(pos, neg, margin)
-            else:
-                losses = loss_function(pos, neg)
-            ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-            rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
-            losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings)
-            print("Valid batch loss: %d %f" % (epoch, losses.item()))
-            # print("Valid batch loss: %d %f" % (epoch, losses.data[0]))
-            # agent.append(validCurve, epoch, losses.data[0])
-
-        if config.early_stopping_round > 0:
-            if epoch == 0:
-                ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
-                rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
-                L1_flag = model.L1_flag
-                filter = model.filter
-                hit10, best_meanrank = evaluation(validList, tripleDict, ent_embeddings, rel_embeddings,
-                    L1_flag, filter, config.batch_size, num_processes=args.num_processes)
-                # agent.append(hit10Curve, epoch, hit10)
-                # agent.append(meanrankCurve, epoch, best_meanrank)
-                torch.save(model, os.path.join('./model/' + args.dataset, filename))
-                best_epoch = 0
-                meanrank_not_decrease_time = 0
-                lr_decrease_time = 0
-                #if USE_CUDA:
-                    #model.cuda()
-
-            # Evaluate on validation set for every 5 epochs
-            elif epoch % 5 == 0:
-                ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
-                rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
-                L1_flag = model.L1_flag
-                filter = model.filter
-                hit10, now_meanrank = evaluation(validList, tripleDict, ent_embeddings, rel_embeddings,
-                    L1_flag, filter, config.batch_size, num_processes=args.num_processes)
-                # agent.append(hit10Curve, epoch, hit10)
-                # agent.append(meanrankCurve, epoch, now_meanrank)
-                if now_meanrank < best_meanrank:
-                    meanrank_not_decrease_time = 0
-                    best_meanrank = now_meanrank
-                    torch.save(model, os.path.join('./model/' + args.dataset, filename))
-                else:
-                    meanrank_not_decrease_time += 1
-                    # If the result hasn't improved for consecutive 5 evaluations, decrease learning rate
-                    if meanrank_not_decrease_time == 5:
-                        lr_decrease_time += 1
-                        if lr_decrease_time == config.early_stopping_round:
-                            break
-                        else:
-                            optimizer.param_groups[0]['lr'] *= 0.5
-                            meanrank_not_decrease_time = 0
-                #if USE_CUDA:
-                    #model.cuda()
-
-        elif (epoch + 1) % 10 == 0 or epoch == 0:
-            torch.save(model, os.path.join('./model/' + args.dataset, filename))
+    # for epoch in range(config.train_times):
+    #     total_loss = floatTensor([0.0])
+    #     random.shuffle(trainBatchList)
+    #     for batchList in trainBatchList:
+    #         if config.filter == True:
+    #             pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_all(batchList,
+    #                 config.entity_total, tripleDict)
+    #         else:
+    #             pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_all(batchList,
+    #                 config.entity_total)
+    #
+    #         batch_entity_set = set(pos_h_batch + pos_t_batch + neg_h_batch + neg_t_batch)
+    #         batch_relation_set = set(pos_r_batch + neg_r_batch)
+    #         batch_entity_list = list(batch_entity_set)
+    #         batch_relation_list = list(batch_relation_set)
+    #
+    #         pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
+    #         pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
+    #         pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
+    #         pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
+    #         neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
+    #         neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
+    #         neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
+    #         neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
+    #
+    #         model.zero_grad()
+    #         pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
+    #
+    #         if args.loss_type == 0:
+    #             losses = loss_function(pos, neg, margin)
+    #         else:
+    #             losses = loss_function(pos, neg)
+    #         ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
+    #         rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
+    #         losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings)
+    #
+    #         losses.backward()
+    #         optimizer.step()
+    #         total_loss += losses.data
+    #
+    #     # agent.append(trainCurve, epoch, total_loss[0])
+    #
+    #     if epoch % 10 == 0:
+    #         now_time = time.time()
+    #         print(now_time - start_time)
+    #         print("Train total loss: %d %f" % (epoch, total_loss[0]))
+    #
+    #     # if epoch % 10 == 0:
+    #     #     if config.filter == True:
+    #     #         pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_random(validList,
+    #     #             config.batch_size, config.entity_total, tripleDict)
+    #     #     else:
+    #     #         pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_random(validList,
+    #     #             config.batch_size, config.entity_total)
+    #     #     pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
+    #     #     pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
+    #     #     pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
+    #     #     pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
+    #     #     neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
+    #     #     neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
+    #     #     neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
+    #     #     neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
+    #     #
+    #     #     pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
+    #     #
+    #     #     if args.loss_type == 0:
+    #     #         losses = loss_function(pos, neg, margin)
+    #     #     else:
+    #     #         losses = loss_function(pos, neg)
+    #     #     ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
+    #     #     rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
+    #     #     losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings)
+    #     #     print("Valid batch loss: %d %f" % (epoch, losses.item()))
+    #     #     # print("Valid batch loss: %d %f" % (epoch, losses.data[0]))
+    #     #     # agent.append(validCurve, epoch, losses.data[0])
+    #
+    #     if config.early_stopping_round > 0:
+    #         if epoch == 0:
+    #             ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
+    #             rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
+    #             L1_flag = model.L1_flag
+    #             filter = model.filter
+    #             hit10, best_meanrank = evaluation(validList, tripleDict, ent_embeddings, rel_embeddings,
+    #                 L1_flag, filter, config.batch_size, num_processes=args.num_processes)
+    #             # agent.append(hit10Curve, epoch, hit10)
+    #             # agent.append(meanrankCurve, epoch, best_meanrank)
+    #             # torch.save(model, os.path.join('./model/' + args.dataset, filename))
+    #             torch.save(model, os.path.join('./model/', filename))
+    #             best_epoch = 0
+    #             meanrank_not_decrease_time = 0
+    #             lr_decrease_time = 0
+    #             #if USE_CUDA:
+    #                 #model.cuda()
+    #
+    #         # Evaluate on validation set for every 5 epochs
+    #         elif epoch % 5 == 0:
+    #             ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
+    #             rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
+    #             L1_flag = model.L1_flag
+    #             filter = model.filter
+    #             hit10, now_meanrank = evaluation(validList, tripleDict, ent_embeddings, rel_embeddings,
+    #                 L1_flag, filter, config.batch_size, num_processes=args.num_processes)
+    #             # agent.append(hit10Curve, epoch, hit10)
+    #             # agent.append(meanrankCurve, epoch, now_meanrank)
+    #             if now_meanrank < best_meanrank:
+    #                 meanrank_not_decrease_time = 0
+    #                 best_meanrank = now_meanrank
+    #                 # torch.save(model, os.path.join('./model/' + args.dataset, filename))
+    #                 torch.save(model, os.path.join('./model/', filename))
+    #             else:
+    #                 meanrank_not_decrease_time += 1
+    #                 # If the result hasn't improved for consecutive 5 evaluations, decrease learning rate
+    #                 if meanrank_not_decrease_time == 5:
+    #                     lr_decrease_time += 1
+    #                     if lr_decrease_time == config.early_stopping_round:
+    #                         break
+    #                     else:
+    #                         optimizer.param_groups[0]['lr'] *= 0.5
+    #                         meanrank_not_decrease_time = 0
+    #             #if USE_CUDA:
+    #                 #model.cuda()
+    #
+    #     elif (epoch + 1) % 10 == 0 or epoch == 0:
+    #         # torch.save(model, os.path.join('./model/' + args.dataset, filename))
+    #         torch.save(model, os.path.join('./model/', filename))
 
     testTotal, testList, testDict, testTimes = load_quadruples('./data/icews14/', 'test2id.txt', 'test_tem.npy')
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
     rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
     tem_embeddings = model.tem_embeddings.weight.data.cpu().numpy()
-    lstm_embeddings = model.lstm.cpu().numpy()
+    # lstm_embeddings = model.lstm.weight.data.cpu().numpy()
+    lstm_embeddings = model.lstm.cpu()
     L1_flag = model.L1_flag
     filter = model.filter
 

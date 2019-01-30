@@ -68,17 +68,13 @@ class TATransEModel(nn.Module):
 		self.tem_embeddings.weight.data = normalize_temporal_emb
 
 	#TODO: should use tensor operations
-	def unroll(self, data, unroll_len = 4):
-		result = []
-		for i in range(len(data) - unroll_len):
-			result.append(data[i: i+unroll_len])
-		return result
+	# def unroll(self, data, unroll_len = 4):
+	# 	result = []
+	# 	for i in range(len(data) - unroll_len):
+	# 		result.append(data[i: i+unroll_len])
+	# 	return result
 
 	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
-		# print(self.ent_embeddings.weight)
-		# print(self.rel_embeddings.weight)
-		# print(self.tem_embeddings.weight)
-
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)
 		pos_r_e = self.rel_embeddings(pos_r)
@@ -91,14 +87,11 @@ class TATransEModel(nn.Module):
 			for token in tem:
 				token_e = self.tem_embeddings(token)
 				seq_e = torch.cat((seq_e, token_e.unsqueeze(0)), 0)
-				# print(token_e.unsqueeze(0).size())
-			# print(np.shape(seq_e))
 			if isFirst:
 				pos_seq_e = seq_e.unsqueeze(0)
 				isFirst = False
 			else:
 				pos_seq_e = torch.cat((pos_seq_e, seq_e.unsqueeze(0)), 0)
-		# print(pos_seq_e.size())
 
 		isFirst = True
 		pos_rseq_e = None
@@ -107,16 +100,12 @@ class TATransEModel(nn.Module):
 			# unroll to get input for LSTM
 			# input_tem = self.unroll(seq_e)
 			input_tem = seq_e.unsqueeze(0) # unroll length = 1
-			# print(input_tem.size())
 			hidden_tem = self.lstm(input_tem)
-			# print(hidden_tem.size())
-			# print(hidden_tem[0,-1,:].size())
 			if isFirst:
 				pos_rseq_e = hidden_tem[0,-1,:].unsqueeze(0)
 				isFirst = False
 			else:
 				pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
-		# print(pos_rseq_e)
 
 		neg_h_e = self.ent_embeddings(neg_h)
 		neg_t_e = self.ent_embeddings(neg_t)
@@ -145,7 +134,6 @@ class TATransEModel(nn.Module):
 				isFirst = False
 			else:
 				neg_rseq_e = torch.cat((neg_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
-		# print(neg_rseq_e)
 
 		# L1 distance
 		if self.L1_flag:
@@ -168,14 +156,11 @@ class TATransEModel(nn.Module):
 			for token in tem:
 				token_e = self.tem_embeddings(token)
 				seq_e = torch.cat((seq_e, token_e.unsqueeze(0)), 0)
-				# print(token_e.unsqueeze(0).size())
-			# print(np.shape(seq_e))
 			if isFirst:
 				pos_seq_e = seq_e.unsqueeze(0)
 				isFirst = False
 			else:
 				pos_seq_e = torch.cat((pos_seq_e, seq_e.unsqueeze(0)), 0)
-		# print(pos_seq_e.size())
 
 		isFirst = True
 		pos_rseq_e = None
@@ -184,14 +169,10 @@ class TATransEModel(nn.Module):
 			# unroll to get input for LSTM
 			# input_tem = self.unroll(seq_e)
 			input_tem = seq_e.unsqueeze(0) # unroll length = 1
-			# print(input_tem.size())
 			hidden_tem = self.lstm(input_tem)
-			# print(hidden_tem.size())
-			# print(hidden_tem[0,-1,:].size())
 			if isFirst:
 				pos_rseq_e = hidden_tem[0,-1,:].unsqueeze(0)
 				isFirst = False
 			else:
 				pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
-		# print(pos_rseq_e)
 		return pos_rseq_e

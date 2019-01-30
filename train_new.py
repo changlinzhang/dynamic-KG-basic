@@ -91,7 +91,7 @@ if __name__ == "__main__":
     argparser.add_argument('-d', '--dataset', type=str)
     argparser.add_argument('-l', '--learning_rate', type=float, default=0.001)
     argparser.add_argument('-es', '--early_stopping_round', type=int, default=0)
-    argparser.add_argument('-L', '--L1_flag', type=int, default=1)
+    argparser.add_argument('-L', '--Los1_flag', type=int, default=1)
     argparser.add_argument('-em', '--embedding_size', type=int, default=100)
     argparser.add_argument('-nb', '--num_batches', type=int, default=100)
     argparser.add_argument('-n', '--train_times', type=int, default=1000)
@@ -244,7 +244,8 @@ if __name__ == "__main__":
                 losses = loss_function(pos, neg)
             ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
             rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
-            losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings)
+            rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
+            losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings) + loss.normLoss(rseq_embeddings)
 
             losses.backward()
             optimizer.step()
@@ -257,34 +258,35 @@ if __name__ == "__main__":
             print(now_time - start_time)
             print("Train total loss: %d %f" % (epoch, total_loss[0]))
 
-        # if epoch % 10 == 0:
-        #     if config.filter == True:
-        #         pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_random(validList,
-        #             config.batch_size, config.entity_total, tripleDict)
-        #     else:
-        #         pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_random(validList,
-        #             config.batch_size, config.entity_total)
-        #     pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
-        #     pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
-        #     pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
-        #     pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
-        #     neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
-        #     neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
-        #     neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
-        #     neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
-        #
-        #     pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
-        #
-        #     if args.loss_type == 0:
-        #         losses = loss_function(pos, neg, margin)
-        #     else:
-        #         losses = loss_function(pos, neg)
-        #     ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-        #     rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
-        #     losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings)
-        #     print("Valid batch loss: %d %f" % (epoch, losses.item()))
-        #     # print("Valid batch loss: %d %f" % (epoch, losses.data[0]))
-        #     # agent.append(validCurve, epoch, losses.data[0])
+        if epoch % 10 == 0:
+            if config.filter == True:
+                pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_random(validList,
+                    config.batch_size, config.entity_total, tripleDict)
+            else:
+                pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_random(validList,
+                    config.batch_size, config.entity_total)
+            pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
+            pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
+            pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
+            pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
+            neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
+            neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
+            neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
+            neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
+
+            pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
+
+            if args.loss_type == 0:
+                losses = loss_function(pos, neg, margin)
+            else:
+                losses = loss_function(pos, neg)
+            ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
+            rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
+            rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
+            losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings) + loss.normLoss(rseq_embeddings)
+            print("Valid batch loss: %d %f" % (epoch, losses.item()))
+            # print("Valid batch loss: %d %f" % (epoch, losses.data[0]))
+            # agent.append(validCurve, epoch, losses.data[0])
 
         if config.early_stopping_round > 0:
             if epoch == 0:
@@ -304,8 +306,8 @@ if __name__ == "__main__":
                 #if USE_CUDA:
                     #model.cuda()
 
-            # Evaluate on validation set for every 5 epochs
-            elif epoch % 5 == 0:
+            # Evaluate on validation set for every 20 epochs
+            elif epoch % 20 == 0:
                 ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
                 rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
                 L1_flag = model.L1_flag
@@ -339,11 +341,6 @@ if __name__ == "__main__":
     testTotal, testList, testDict, testTimes = load_quadruples('./data/icews14/', 'test2id.txt', 'test_tem.npy')
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
-    # rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
-    # tem_embeddings = model.tem_embeddings.weight.data.cpu().numpy()
-    # lstm_embeddings = model.lstm.cpu()
-    # L1_flag = model.L1_flag
-    # filter = model.filter
 
     hit10Test, meanrankTest = evaluation(testList, tripleDict, model, ent_embeddings, head=0)
 

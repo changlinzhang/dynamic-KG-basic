@@ -23,7 +23,7 @@ def get_total_number(inPath, fileName):
 			return int(line_split[0]), int(line_split[1])
 
 
-def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName2 = None):
+def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName2 = None, fileName3 = None, temFileName3 = None):
 	tem = np.load(os.path.join(inPath, temFileName)).tolist()
 	with open(os.path.join(inPath, fileName), 'r') as fr:
 		quadrupleList = []
@@ -54,6 +54,23 @@ def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName
 				time = tem2[quadrupleTotal-trainTotal-1]
 				# times.add(time)
 				quadrupleList.append(Quadruple(head, tail, rel, time))
+
+	trainTestTotal = quadrupleTotal
+	if temFileName3 is not None:
+		tem3 = np.load(os.path.join(inPath, temFileName3)).tolist()
+	if fileName3 is not None:
+		assert quadrupleTotal != 0
+		with open(os.path.join(inPath, fileName3), 'r') as fr:
+			for line in fr:
+				quadrupleTotal += 1
+				line_split = line.split()
+				head = int(line_split[0])
+				tail = int(line_split[2])
+				rel = int(line_split[1])
+				time = tem3[quadrupleTotal-trainTestTotal-1]
+				# times.add(time)
+				quadrupleList.append(Quadruple(head, tail, rel, time))
+
 	times = list(times)
 	times.sort()
 	tripleDict = {}

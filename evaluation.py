@@ -6,8 +6,21 @@ import random
 import multiprocessing
 import math
 import torch
+import torch.autograd as autograd
 
 from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
+
+from data import *
+
+USE_CUDA = torch.cuda.is_available()
+
+if USE_CUDA:
+	longTensor = torch.cuda.LongTensor
+	floatTensor = torch.cuda.FloatTensor
+
+else:
+	longTensor = torch.LongTensor
+	floatTensor = torch.FloatTensor
 
 
 def isHit10(triple, tree, cal_embedding, tripleDict, isTail):
@@ -86,165 +99,61 @@ def pairwise_L2_distances(A, B):
     return dist
 
 
-def evaluation_helper(testList, tripleDict, ent_embeddings,
-    rel_embeddings, tem_embeddings, lstm_embeddings, filter, head=0):
+def evaluation_helper(testList, tripleDict, model, ent_embeddings, filter, head=0):
     # embeddings are numpy likre
-
-    headList = [triple.s for triple in testList]
-    tailList = [triple.o for triple in testList]
-    relList = [triple.r for triple in testList]
-    temList = [triple.t for triple in testList]
-
+    headList, tailList, relList, timeList = getFourElements(testList)
     h_e = ent_embeddings[headList]
     t_e = ent_embeddings[tailList]
-    r_e = rel_embeddings[relList]
-    print(np.shape(h_e))
-    print(np.shape(r_e))
 
-    seq_e = []
-    i = 0
-    for tem in temList:
-        one_seq_e = []
-        one_seq_e.append(r_e[i])
-        for token in tem:
-            token_e = tem_embeddings[token]
-            one_seq_e.append(token_e)
-        seq_e.append(one_seq_e)
+    test_r_batch = autograd.Variable(longTensor(relList))
+    test_time_batch = autograd.Variable(longTensor(timeList))
 
-    rseq_e = []
-    # add LSTM
-    for one_seq_e in seq_e:
-        # unroll to get input for LSTM
-        input_tem = []
-        input_tem.append(one_seq_e) # expand_dims/unsqueeze, unroll length = 1
-        input_tem_tensor = torch.Tensor(input_tem)
-        hidden_tem_tensor = lstm_embeddings(input_tem_tensor)
-        hidden_tem = hidden_tem_tensor.data[0]
-        # print(np.shape(hidden_tem))
-        rseq_e.append(hidden_tem)
-    print(np.shape(rseq_e))
-    # Evaluate the prediction of only head entities
-    if head == 1:
-        c_h_e = t_e * rseq_e
-        # c_h_e = t_e - r_e
+    rseq_e = model.get_rseq(test_r_batch, test_time_batch).data.cpu().numpy()
+    # print(h_e)
+    # print(rseq_e)
+    c_t_e = h_e + rseq_e
+    c_h_e = t_e - rseq_e
 
-        # dist = pairwise_distances(c_h_e, ent_embeddings, metric='euclidean')
-        cosim = cosine_similarity(c_h_e, ent_embeddings)
-        # modify cosim
-        X = np.linalg.norm(c_h_e, 2, axis=1)
-        Y = np.linalg.norm(ent_embeddings, 2, axis=1)
-        cosim *= Y
-        tem = np.transpose(cosim) * X
-        scores = np.transpose(tem)
-        # rankArrayHead = np.argsort(dist, axis=1)
-        rankArrayHead = np.argsort(-scores, axis=1)
-        # Don't check whether it is false negative
-        if filter == False:
-            rankListHead = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(headList, rankArrayHead)]
-        # Check whether it is false negative
-        else:
-            rankListHead = [argwhereHead(elem[0], elem[1], elem[2], elem[3], tripleDict)
-                            for elem in zip(headList, tailList, relList, rankArrayHead)]
+    # print(c_t_e)
+    # print(c_t_e.shape)
+    dist = pairwise_distances(c_t_e, ent_embeddings, metric='euclidean')
 
-        isHit10ListHead = [x for x in rankListHead if x < 10]
-
-        totalRank = sum(rankListHead)
-        hit10Count = len(isHit10ListHead)
-        tripleCount = len(rankListHead)
-
-    # Evaluate the prediction of only tail entities
-    elif head == 2:
-        c_t_e = h_e * rseq_e
-
-        # dist = pairwise_distances(c_t_e, ent_embeddings, metric='euclidean')
-        cosim = cosine_similarity(c_t_e, ent_embeddings)
-
-        # rankArrayTail = np.argsort(dist, axis=1)
-        rankArrayTail = np.argsort(-cosim, axis=1)
-        if filter == False:
-            rankListTail = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(tailList, rankArrayTail)]
-        else:
-            rankListTail = [argwhereTail(elem[0], elem[1], elem[2], elem[3], tripleDict)
-                            for elem in zip(headList, tailList, relList, rankArrayTail)]
-
-        isHit10ListTail = [x for x in rankListTail if x < 10]
-
-        totalRank = sum(rankListTail)
-        hit10Count = len(isHit10ListTail)
-        tripleCount = len(rankListTail)
-
-    # Evaluate the prediction of both head and tail entities
+    rankArrayTail = np.argsort(dist, axis=1)
+    if filter == False:
+        rankListTail = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(tailList, rankArrayTail)]
     else:
-        c_t_e = h_e + rseq_e
-        c_h_e = t_e - rseq_e
+        rankListTail = [argwhereTail(elem[0], elem[1], elem[2], elem[3], tripleDict)
+                        for elem in zip(headList, tailList, relList, rankArrayTail)]
 
-        dist = pairwise_distances(c_t_e, ent_embeddings, metric='euclidean')
+    isHit10ListTail = [x for x in rankListTail if x < 10]
 
-        rankArrayTail = np.argsort(dist, axis=1)
-        if filter == False:
-            rankListTail = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(tailList, rankArrayTail)]
-        else:
-            rankListTail = [argwhereTail(elem[0], elem[1], elem[2], elem[3], tripleDict)
-                            for elem in zip(headList, tailList, relList, rankArrayTail)]
+    dist = pairwise_distances(c_h_e, ent_embeddings, metric='euclidean')
 
-        isHit10ListTail = [x for x in rankListTail if x < 10]
+    rankArrayHead = np.argsort(dist, axis=1)
+    if filter == False:
+        rankListHead = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(headList, rankArrayHead)]
+    else:
+        rankListHead = [argwhereHead(elem[0], elem[1], elem[2], elem[3], tripleDict)
+                        for elem in zip(headList, tailList, relList, rankArrayHead)]
 
-        dist = pairwise_distances(c_h_e, ent_embeddings, metric='euclidean')
+    isHit10ListHead = [x for x in rankListHead if x < 10]
 
-        rankArrayHead = np.argsort(dist, axis=1)
-        if filter == False:
-            rankListHead = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(headList, rankArrayHead)]
-        else:
-            rankListHead = [argwhereHead(elem[0], elem[1], elem[2], elem[3], tripleDict)
-                            for elem in zip(headList, tailList, relList, rankArrayHead)]
-
-        isHit10ListHead = [x for x in rankListHead if x < 10]
-
-        totalRank = sum(rankListTail) + sum(rankListHead)
-        hit10Count = len(isHit10ListTail) + len(isHit10ListHead)
-        tripleCount = len(rankListTail) + len(rankListHead)
+    totalRank = sum(rankListTail) + sum(rankListHead)
+    hit10Count = len(isHit10ListTail) + len(isHit10ListHead)
+    tripleCount = len(rankListTail) + len(rankListHead)
 
     return hit10Count, totalRank, tripleCount
 
 
-class MyProcess(multiprocessing.Process):
-    def __init__(self, L, tripleDict, ent_embeddings,
-        rel_embeddings, tem_embeddings, lstm_embeddings, filter, queue=None, head=0):
-        super(MyProcess, self).__init__()
-        self.L = L
-        self.queue = queue
-        self.tripleDict = tripleDict
-        self.ent_embeddings = ent_embeddings
-        self.rel_embeddings = rel_embeddings
-        self.tem_embeddings = tem_embeddings
-        self.lstm_embeddings = lstm_embeddings
-        self.filter = filter
-        self.head = head
+def process_data(testList, tripleDict, model, ent_embeddings, L, head):
 
-    def run(self):
-        while True:
-            testList = self.queue.get()
-            try:
-                self.process_data(testList, self.tripleDict, self.ent_embeddings, self.rel_embeddings,
-                                  self.tem_embeddings, self.lstm_embeddings, self.filter, self.L, self.head)
-            except:
-                time.sleep(5)
-                self.process_data(testList, self.tripleDict, self.ent_embeddings, self.rel_embeddings,
-                                  self.tem_embeddings, self.lstm_embeddings, self.filter, self.L, self.head)
-            self.queue.task_done()
+    hit10Count, totalRank, tripleCount = evaluation_helper(testList, tripleDict, model, ent_embeddings, model.filter, head)
 
-    def process_data(self, testList, tripleDict, ent_embeddings, rel_embeddings, tem_embeddings, lstm_embeddings,
-                     filter, L, head):
-
-        hit10Count, totalRank, tripleCount = evaluation_helper(testList, tripleDict, ent_embeddings,
-            rel_embeddings, tem_embeddings, lstm_embeddings, filter, head)
-
-        L.append((hit10Count, totalRank, tripleCount))
+    L.append((hit10Count, totalRank, tripleCount))
 
 
 # Use multiprocessing to speed up evaluation
-def evaluation(testList, tripleDict, ent_embeddings, rel_embeddings, tem_embeddings, lstm_embeddings,
-               filter, k=0, num_processes=multiprocessing.cpu_count(), head=0):
+def evaluation(testList, tripleDict, model, ent_embeddings, k=0, head=0):
     # embeddings are numpy like
 
     if k > len(testList):
@@ -252,32 +161,10 @@ def evaluation(testList, tripleDict, ent_embeddings, rel_embeddings, tem_embeddi
     elif k > 0:
         testList = random.sample(testList, k=k)
 
-    # Split the testList into #num_processes parts
-    len_split = math.ceil(len(testList) / num_processes)
-    testListSplit = [testList[i : i + len_split] for i in range(0, len(testList), len_split)]
+    L = []
+    process_data(testList, tripleDict, model, ent_embeddings, L, head)
 
-    with multiprocessing.Manager() as manager:
-        # Create a public writable list to store the result
-        L = manager.list()
-        queue = multiprocessing.JoinableQueue()
-        workerList = []
-        for i in range(num_processes):
-            worker = MyProcess(L, tripleDict, ent_embeddings, rel_embeddings, tem_embeddings, lstm_embeddings,
-                               filter, queue=queue, head=head)
-            workerList.append(worker)
-            worker.daemon = True
-            worker.start()
-
-        for subList in testListSplit:
-            queue.put(subList)
-
-        queue.join()
-
-        resultList = list(L)
-
-        # Terminate the worker after execution, to avoid memory leaking
-        for worker in workerList:
-            worker.terminate()
+    resultList = list(L)
 
     # what is head?
     if head == 1 or head == 2:

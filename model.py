@@ -52,6 +52,7 @@ class TATransEModel(nn.Module):
 		# Use xavier initialization method to initialize embeddings of entities and relations
 		nn.init.xavier_uniform(ent_weight)
 		nn.init.xavier_uniform(rel_weight)
+		nn.init.xavier_uniform(tem_weight)
 		self.ent_embeddings = nn.Embedding(self.entity_total, self.embedding_size)
 		self.rel_embeddings = nn.Embedding(self.relation_total, self.embedding_size)
 		self.tem_embeddings = nn.Embedding(self.tem_total, self.embedding_size)
@@ -74,6 +75,10 @@ class TATransEModel(nn.Module):
 		return result
 
 	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
+		# print(self.ent_embeddings.weight)
+		# print(self.rel_embeddings.weight)
+		# print(self.tem_embeddings.weight)
+
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)
 		pos_r_e = self.rel_embeddings(pos_r)
@@ -111,6 +116,7 @@ class TATransEModel(nn.Module):
 				isFirst = False
 			else:
 				pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
+		# print(pos_rseq_e)
 
 		neg_h_e = self.ent_embeddings(neg_h)
 		neg_t_e = self.ent_embeddings(neg_t)
@@ -139,49 +145,7 @@ class TATransEModel(nn.Module):
 				isFirst = False
 			else:
 				neg_rseq_e = torch.cat((neg_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
-
-		# pos_tem_e = []
-		# for tem in pos_tem:
-		# 	tem_e = []
-		# 	for token in tem:
-		# 		token_e = self.tem_embeddings(token)
-		# 		tem_e.append(token_e)
-		# 	pos_tem_e.append(tem_e)
-        #
-		# pos_rseq_e = []
-		# # add LSTM
-		# pos_input_r = self.unroll(pos_r_e)
-		# pos_hidden_r = self.lstm(pos_input_r)
-		# pos_rseq_e.append(pos_hidden_r[0,-1,:])
-		# for tem_e in pos_tem_e:
-		# 	# unroll to get input for LSTM
-		# 	input_tem = self.unroll(tem_e)
-		# 	hidden_tem = self.lstm(input_tem)
-		# 	print(np.shape(hidden_tem[0,-1:,:]))
-		# 	pos_rseq_e.append(hidden_tem[0,-1:,:])
-        #
-		# neg_h_e = self.ent_embeddings(neg_h)
-		# neg_t_e = self.ent_embeddings(neg_t)
-		# neg_r_e = self.rel_embeddings(neg_r)
-		# neg_tem_e = []
-		# for tem in neg_tem:
-		# 	tem_e = []
-		# 	for token in tem:
-		# 		token_e = self.tem_embeddings(token)
-		# 		tem_e.append(token_e)
-		# 	neg_tem_e.append(tem_e)
-        #
-		# neg_rseq_e = []
-		# # add LSTM
-		# neg_input_r = self.unroll(neg_r_e)
-		# neg_hidden_r = self.lstm(neg_input_r)
-		# neg_rseq_e.append(neg_hidden_r[0,-1,:])
-		# for tem_e in pos_tem_e:
-		# 	# unroll to get input for LSTM
-		# 	input_tem = self.unroll(tem_e)
-		# 	hidden_tem = self.lstm(input_tem)
-		# 	print(np.shape(hidden_tem[0,-1,:]))
-		# 	neg_rseq_e.append(hidden_tem[0,-1,:])
+		# print(neg_rseq_e)
 
 		# L1 distance
 		if self.L1_flag:
@@ -192,3 +156,42 @@ class TATransEModel(nn.Module):
 			pos = torch.sum((pos_h_e + pos_rseq_e - pos_t_e) ** 2, 1)
 			neg = torch.sum((neg_h_e + pos_rseq_e - neg_t_e) ** 2, 1)
 		return pos, neg
+
+	def get_rseq(self, pos_r, pos_tem):
+		pos_r_e = self.rel_embeddings(pos_r)
+
+		isFirst = True
+		pos_seq_e = None
+		i = 0
+		for tem in pos_tem:
+			seq_e = pos_r_e[i].unsqueeze(0)
+			for token in tem:
+				token_e = self.tem_embeddings(token)
+				seq_e = torch.cat((seq_e, token_e.unsqueeze(0)), 0)
+				# print(token_e.unsqueeze(0).size())
+			# print(np.shape(seq_e))
+			if isFirst:
+				pos_seq_e = seq_e.unsqueeze(0)
+				isFirst = False
+			else:
+				pos_seq_e = torch.cat((pos_seq_e, seq_e.unsqueeze(0)), 0)
+		# print(pos_seq_e.size())
+
+		isFirst = True
+		pos_rseq_e = None
+		# add LSTM
+		for seq_e in pos_seq_e:
+			# unroll to get input for LSTM
+			# input_tem = self.unroll(seq_e)
+			input_tem = seq_e.unsqueeze(0) # unroll length = 1
+			# print(input_tem.size())
+			hidden_tem = self.lstm(input_tem)
+			# print(hidden_tem.size())
+			# print(hidden_tem[0,-1,:].size())
+			if isFirst:
+				pos_rseq_e = hidden_tem[0,-1,:].unsqueeze(0)
+				isFirst = False
+			else:
+				pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
+		# print(pos_rseq_e)
+		return pos_rseq_e

@@ -91,7 +91,7 @@ if __name__ == "__main__":
     argparser.add_argument('-d', '--dataset', type=str)
     argparser.add_argument('-l', '--learning_rate', type=float, default=0.001)
     argparser.add_argument('-es', '--early_stopping_round', type=int, default=0)
-    argparser.add_argument('-L', '--Los1_flag', type=int, default=1)
+    argparser.add_argument('-L', '--L1_flag', type=int, default=1)
     argparser.add_argument('-em', '--embedding_size', type=int, default=100)
     argparser.add_argument('-nb', '--num_batches', type=int, default=100)
     argparser.add_argument('-n', '--train_times', type=int, default=1000)
@@ -348,5 +348,5 @@ if __name__ == "__main__":
         'testSet', '%.6f' % hit10Test, '%.6f' % meanrankTest]
 
     # Write the result into file
-    with open(os.path.join('./result/', args.dataset + '.txt'), 'a') as fw:
+    with open(os.path.join('./result/', 'icews2014.txt'), 'a') as fw:
         fw.write('\t'.join(writeList) + '\n')

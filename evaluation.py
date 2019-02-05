@@ -125,6 +125,8 @@ def evaluation_helper(testList, tripleDict, model, ent_embeddings, filter, head=
         rankListTail = [argwhereTail(elem[0], elem[1], elem[2], elem[3], tripleDict)
                         for elem in zip(headList, tailList, relList, rankArrayTail)]
 
+    isHit1ListTail = [x for x in rankListTail if x < 1]
+    isHit3ListTail = [x for x in rankListTail if x < 3]
     isHit10ListTail = [x for x in rankListTail if x < 10]
 
     dist = pairwise_distances(c_h_e, ent_embeddings, metric='euclidean')
@@ -136,20 +138,27 @@ def evaluation_helper(testList, tripleDict, model, ent_embeddings, filter, head=
         rankListHead = [argwhereHead(elem[0], elem[1], elem[2], elem[3], tripleDict)
                         for elem in zip(headList, tailList, relList, rankArrayHead)]
 
+    isHit1ListHead = [x for x in rankListHead if x < 1]
+    isHit3ListHead = [x for x in rankListHead if x < 3]
     isHit10ListHead = [x for x in rankListHead if x < 10]
 
+    re_rankListHead = [1.0/(x+1) for x in rankListHead]
+    re_rankListTail = [1.0/(x+1) for x in rankListTail]
+
     totalRank = sum(rankListTail) + sum(rankListHead)
+    totalReRank = sum(re_rankListHead) + sum(re_rankListTail)
+    hit1Count = len(isHit1ListTail) + len(isHit1ListHead)
+    hit3Count = len(isHit3ListTail) + len(isHit3ListHead)
     hit10Count = len(isHit10ListTail) + len(isHit10ListHead)
     tripleCount = len(rankListTail) + len(rankListHead)
 
-    return hit10Count, totalRank, tripleCount
+    return hit1Count, hit3Count, hit10Count, totalRank, totalReRank, tripleCount
 
 
 def process_data(testList, tripleDict, model, ent_embeddings, L, head):
+    hit1Count, hit3Count, hit10Count, totalRank, totalReRank, tripleCount = evaluation_helper(testList, tripleDict, model, ent_embeddings, model.filter, head)
 
-    hit10Count, totalRank, tripleCount = evaluation_helper(testList, tripleDict, model, ent_embeddings, model.filter, head)
-
-    L.append((hit10Count, totalRank, tripleCount))
+    L.append((hit1Count, hit3Count, hit10Count, totalRank, totalReRank, tripleCount))
 
 
 # Use multiprocessing to speed up evaluation
@@ -168,13 +177,22 @@ def evaluation(testList, tripleDict, model, ent_embeddings, k=0, head=0):
 
     # what is head?
     if head == 1 or head == 2:
-        hit10 = sum([elem[0] for elem in resultList]) / len(testList)
-        meanrank = sum([elem[1] for elem in resultList]) / len(testList)
+        hit1 = sum([elem[0] for elem in resultList]) / len(testList)
+        hit3 = sum([elem[1] for elem in resultList]) / len(testList)
+        hit10 = sum([elem[2] for elem in resultList]) / len(testList)
+        meanrank = sum([elem[3] for elem in resultList]) / len(testList)
+        meanrerank = sum([elem[4] for elem in resultList]) / len(testList)
     else:
-        hit10 = sum([elem[0] for elem in resultList]) / (2 * len(testList))
-        meanrank = sum([elem[1] for elem in resultList]) / (2 * len(testList))
+        hit1 = sum([elem[0] for elem in resultList]) / (2 * len(testList))
+        hit3 = sum([elem[1] for elem in resultList]) / (2 * len(testList))
+        hit10 = sum([elem[2] for elem in resultList]) / (2 * len(testList))
+        meanrank = sum([elem[3] for elem in resultList]) / (2 * len(testList))
+        meanrerank = sum([elem[4] for elem in resultList]) / (2 * len(testList))
 
     print('Meanrank: %.6f' % meanrank)
+    print('Meanrerank: %.6f' % meanrerank)
+    print('Hit@1: %.6f' % hit1)
+    print('Hit@3: %.6f' % hit3)
     print('Hit@10: %.6f' % hit10)
 
-    return hit10, meanrank
+    return hit1, hit3, hit10, meanrank, meanrerank

@@ -112,9 +112,8 @@ if __name__ == "__main__":
     if args.seed != 0:
         torch.manual_seed(args.seed)
 
-    trainTotal, trainList, trainDict, trainTimes = load_quadruples('./data/icews14/', 'train2id.txt', 'train_tem.npy')
-    validTotal, validList, validDict, validTimes = load_quadruples('./data/icews14/', 'valid2id.txt', 'valid_tem.npy')
-    quadrupleTotal, quadrupleList, tripleDict, _ = load_quadruples('./data/icews14/', 'train2id.txt', 'train_tem.npy', 'valid2id.txt', 'valid_tem.npy', 'test2id.txt', 'test_tem.npy')
+    trainTotal, trainList, trainDict, trainTimes = load_quadruples('./data/icews_ke_date/', 'train.txt', 'train_tem.npy')
+    quadrupleTotal, quadrupleList, tripleDict, _ = load_quadruples('./data/icews_ke_date/', 'train.txt', 'train_tem.npy', 'test.txt', 'test_tem.npy')
     config = Config()
     config.dataset = args.dataset
     config.learning_rate = args.learning_rate
@@ -148,7 +147,7 @@ if __name__ == "__main__":
     if args.loss_type == 0:
         config.loss_function = loss.marginLoss
 
-    config.entity_total, config.relation_total = get_total_number('./data/icews14/', 'stat.txt')
+    config.entity_total, config.relation_total = get_total_number('./data/icews_ke_date/', 'stat.txt')
     config.time_total = 32
     config.batch_size = trainTotal // config.num_batches
 
@@ -193,7 +192,7 @@ if __name__ == "__main__":
     #     #      'op', str(args.optimizer),
     #     #      'lo', str(args.loss_type),]) + '_TATransE.ckpt'
     filename = 'TATransE.ckpt'
-    path_name = os.path.join('./model/', filename)
+    path_name = os.path.join('./model/' + args.dataset, filename)
     if os.path.exists(path_name):
         model = torch.load(path_name)
     else:
@@ -258,96 +257,19 @@ if __name__ == "__main__":
     #         print(now_time - start_time)
     #         print("Train total loss: %d %f" % (epoch, total_loss[0]))
     #
-    #     if epoch % 10 == 0:
-    #         if config.filter == True:
-    #             pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_random(validList,
-    #                 config.batch_size, config.entity_total, tripleDict)
-    #         else:
-    #             pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_random(validList,
-    #                 config.batch_size, config.entity_total)
-    #         pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
-    #         pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
-    #         pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
-    #         pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
-    #         neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
-    #         neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
-    #         neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
-    #         neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
-    #
-    #         pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
-    #
-    #         if args.loss_type == 0:
-    #             losses = loss_function(pos, neg, margin)
-    #         else:
-    #             losses = loss_function(pos, neg)
-    #         ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-    #         rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
-    #         rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
-    #         losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings) + loss.normLoss(rseq_embeddings)
-    #         print("Valid batch loss: %d %f" % (epoch, losses.item()))
-    #         # print("Valid batch loss: %d %f" % (epoch, losses.data[0]))
-    #         # agent.append(validCurve, epoch, losses.data[0])
-    #
-    #     if config.early_stopping_round > 0:
-    #         if epoch == 0:
-    #             ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
-    #             rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
-    #             L1_flag = model.L1_flag
-    #             filter = model.filter
-    #             hit10, best_meanrank = evaluation(validList, tripleDict, ent_embeddings, rel_embeddings,
-    #                 L1_flag, filter, config.batch_size, num_processes=args.num_processes)
-    #             # agent.append(hit10Curve, epoch, hit10)
-    #             # agent.append(meanrankCurve, epoch, best_meanrank)
-    #             # torch.save(model, os.path.join('./model/' + args.dataset, filename))
-    #             torch.save(model, os.path.join('./model/', filename))
-    #             best_epoch = 0
-    #             meanrank_not_decrease_time = 0
-    #             lr_decrease_time = 0
-    #             #if USE_CUDA:
-    #                 #model.cuda()
-    #
-    #         # Evaluate on validation set for every 20 epochs
-    #         elif epoch % 20 == 0:
-    #             ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
-    #             rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
-    #             L1_flag = model.L1_flag
-    #             filter = model.filter
-    #             hit10, now_meanrank = evaluation(validList, tripleDict, ent_embeddings, rel_embeddings,
-    #                 L1_flag, filter, config.batch_size, num_processes=args.num_processes)
-    #             # agent.append(hit10Curve, epoch, hit10)
-    #             # agent.append(meanrankCurve, epoch, now_meanrank)
-    #             if now_meanrank < best_meanrank:
-    #                 meanrank_not_decrease_time = 0
-    #                 best_meanrank = now_meanrank
-    #                 # torch.save(model, os.path.join('./model/' + args.dataset, filename))
-    #                 torch.save(model, os.path.join('./model/', filename))
-    #             else:
-    #                 meanrank_not_decrease_time += 1
-    #                 # If the result hasn't improved for consecutive 5 evaluations, decrease learning rate
-    #                 if meanrank_not_decrease_time == 5:
-    #                     lr_decrease_time += 1
-    #                     if lr_decrease_time == config.early_stopping_round:
-    #                         break
-    #                     else:
-    #                         optimizer.param_groups[0]['lr'] *= 0.5
-    #                         meanrank_not_decrease_time = 0
-    #             #if USE_CUDA:
-    #                 #model.cuda()
-    #
-    #     elif (epoch + 1) % 10 == 0 or epoch == 0:
-    #         # torch.save(model, os.path.join('./model/' + args.dataset, filename))
-    #         torch.save(model, os.path.join('./model/', filename))
+    #     if (epoch + 1) % 10 == 0 or epoch == 0:
+    #         torch.save(model, os.path.join('./model/' + args.dataset, filename))
+    #         # torch.save(model, os.path.join('./model/', filename))
 
-    testTotal, testList, testDict, testTimes = load_quadruples('./data/icews14/', 'test2id.txt', 'test_tem.npy')
+    testTotal, testList, testDict, testTimes = load_quadruples('./data/icews_ke_date/', 'test.txt', 'test_tem.npy')
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
 
-    hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest = evaluation(testList, tripleDict, model,
-                                                                             ent_embeddings, head=0)
+    hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, head=0)
+
     writeList = [filename,
-                 'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest,
-                 '%.6f' % meanrerankTest]
+        'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]
 
     # Write the result into file
-    with open(os.path.join('./result/', 'icews2014.txt'), 'a') as fw:
+    with open(os.path.join('./result/', args.dataset + '.txt'), 'a') as fw:
         fw.write('\t'.join(writeList) + '\n')

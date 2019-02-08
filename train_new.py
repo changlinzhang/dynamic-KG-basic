@@ -253,7 +253,7 @@ if __name__ == "__main__":
     #
     #     # agent.append(trainCurve, epoch, total_loss[0])
     #
-    #     if epoch % 10 == 0:
+    #     if epoch % 5 == 0:
     #         now_time = time.time()
     #         print(now_time - start_time)
     #         print("Train total loss: %d %f" % (epoch, total_loss[0]))
@@ -334,7 +334,7 @@ if __name__ == "__main__":
     #             #if USE_CUDA:
     #                 #model.cuda()
     #
-    #     elif (epoch + 1) % 10 == 0 or epoch == 0:
+    #     elif (epoch + 1) % 5 == 0 or epoch == 0:
     #         # torch.save(model, os.path.join('./model/' + args.dataset, filename))
     #         torch.save(model, os.path.join('./model/', filename))
 

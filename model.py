@@ -68,11 +68,14 @@ class TATransEModel(nn.Module):
 		self.tem_embeddings.weight.data = normalize_temporal_emb
 
 	#TODO: should use tensor operations
-	# def unroll(self, data, unroll_len = 4):
-	# 	result = []
-	# 	for i in range(len(data) - unroll_len):
-	# 		result.append(data[i: i+unroll_len])
-	# 	return result
+	def unroll(self, data, unroll_len = 5):
+		result = None
+		for i in range(len(data) - unroll_len):
+			if i == 0:
+				result = data[i: i+unroll_len]
+			else:
+				result = torch.cat((result, data[i: i+unroll_len]), 0)
+		return result
 
 	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
 		pos_h_e = self.ent_embeddings(pos_h)
@@ -98,8 +101,8 @@ class TATransEModel(nn.Module):
 		# add LSTM
 		for seq_e in pos_seq_e:
 			# unroll to get input for LSTM
-			# input_tem = self.unroll(seq_e)
-			input_tem = seq_e.unsqueeze(0) # unroll length = 1
+			input_tem = self.unroll(seq_e).unsqueeze(0)
+			# input_tem = seq_e.unsqueeze(0) # unroll length = 1
 			hidden_tem = self.lstm(input_tem)
 			if isFirst:
 				pos_rseq_e = hidden_tem[0,-1,:].unsqueeze(0)
@@ -127,7 +130,8 @@ class TATransEModel(nn.Module):
 		isFirst = True
 		neg_rseq_e = None
 		for seq_e in neg_seq_e:
-			input_tem = seq_e.unsqueeze(0)
+			# input_tem = seq_e.unsqueeze(0)
+			input_tem = self.unroll(seq_e).unsqueeze(0)
 			hidden_tem = self.lstm(input_tem)
 			if isFirst:
 				neg_rseq_e = hidden_tem[0,-1,:].unsqueeze(0)
@@ -167,8 +171,8 @@ class TATransEModel(nn.Module):
 		# add LSTM
 		for seq_e in pos_seq_e:
 			# unroll to get input for LSTM
-			# input_tem = self.unroll(seq_e)
-			input_tem = seq_e.unsqueeze(0) # unroll length = 1
+			input_tem = self.unroll(seq_e).unsqueeze(0)
+			# input_tem = seq_e.unsqueeze(0) # unroll length = 1
 			hidden_tem = self.lstm(input_tem)
 			if isFirst:
 				pos_rseq_e = hidden_tem[0,-1,:].unsqueeze(0)

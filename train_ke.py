@@ -207,59 +207,59 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    # trainBatchList = getBatchList(trainList, config.num_batches)
-    #
-    # for epoch in range(config.train_times):
-    #     total_loss = floatTensor([0.0])
-    #     random.shuffle(trainBatchList)
-    #     for batchList in trainBatchList:
-    #         if config.filter == True:
-    #             pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_all(batchList,
-    #                 config.entity_total, tripleDict)
-    #         else:
-    #             pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_all(batchList,
-    #                 config.entity_total)
-    #
-    #         batch_entity_set = set(pos_h_batch + pos_t_batch + neg_h_batch + neg_t_batch)
-    #         batch_relation_set = set(pos_r_batch + neg_r_batch)
-    #         batch_entity_list = list(batch_entity_set)
-    #         batch_relation_list = list(batch_relation_set)
-    #
-    #         pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
-    #         pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
-    #         pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
-    #         pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
-    #         neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
-    #         neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
-    #         neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
-    #         neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
-    #
-    #         model.zero_grad()
-    #         pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
-    #
-    #         if args.loss_type == 0:
-    #             losses = loss_function(pos, neg, margin)
-    #         else:
-    #             losses = loss_function(pos, neg)
-    #         ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-    #         rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
-    #         rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
-    #         losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings) + loss.normLoss(rseq_embeddings)
-    #
-    #         losses.backward()
-    #         optimizer.step()
-    #         total_loss += losses.data
-    #
-    #     # agent.append(trainCurve, epoch, total_loss[0])
-    #
-    #     if epoch % 10 == 0:
-    #         now_time = time.time()
-    #         print(now_time - start_time)
-    #         print("Train total loss: %d %f" % (epoch, total_loss[0]))
-    #
-    #     if (epoch + 1) % 10 == 0 or epoch == 0:
-    #         torch.save(model, os.path.join('./model/' + args.dataset, filename))
-    #         # torch.save(model, os.path.join('./model/', filename))
+    trainBatchList = getBatchList(trainList, config.num_batches)
+
+    for epoch in range(config.train_times):
+        total_loss = floatTensor([0.0])
+        random.shuffle(trainBatchList)
+        for batchList in trainBatchList:
+            if config.filter == True:
+                pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_all(batchList,
+                    config.entity_total, tripleDict)
+            else:
+                pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_all(batchList,
+                    config.entity_total)
+
+            batch_entity_set = set(pos_h_batch + pos_t_batch + neg_h_batch + neg_t_batch)
+            batch_relation_set = set(pos_r_batch + neg_r_batch)
+            batch_entity_list = list(batch_entity_set)
+            batch_relation_list = list(batch_relation_set)
+
+            pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
+            pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
+            pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
+            pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
+            neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
+            neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
+            neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
+            neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
+
+            model.zero_grad()
+            pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
+
+            if args.loss_type == 0:
+                losses = loss_function(pos, neg, margin)
+            else:
+                losses = loss_function(pos, neg)
+            ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
+            rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
+            rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
+            losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings) + loss.normLoss(rseq_embeddings)
+
+            losses.backward()
+            optimizer.step()
+            total_loss += losses.data
+
+        # agent.append(trainCurve, epoch, total_loss[0])
+
+        # if epoch % 10 == 0:
+        now_time = time.time()
+        print(now_time - start_time)
+        print("Train total loss: %d %f" % (epoch, total_loss[0]))
+
+        # if (epoch + 1) % 10 == 0 or epoch == 0:
+        #    torch.save(model, os.path.join('./model/', filename))
+        torch.save(model, os.path.join('./model/' + args.dataset, filename))
 
     testTotal, testList, testDict, testTimes = load_quadruples('./data/icews_ke_date/', 'test.txt', 'test_tem.npy')
 

@@ -196,3 +196,29 @@ def evaluation(testList, tripleDict, model, ent_embeddings, k=0, head=0):
     print('Hit@10: %.6f' % hit10)
 
     return hit1, hit3, hit10, meanrank, meanrerank
+
+
+def evaluation_batch(testList, tripleDict, model, ent_embeddings, k=0, head=0):
+    # embeddings are numpy like
+
+    if k > len(testList):
+        testList = random.choices(testList, k=k)
+    elif k > 0:
+        testList = random.sample(testList, k=k)
+
+    L = []
+    process_data(testList, tripleDict, model, ent_embeddings, L, head)
+
+    resultList = list(L)
+
+    hit1 = sum([elem[0] for elem in resultList])
+    hit3 = sum([elem[1] for elem in resultList])
+    hit10 = sum([elem[2] for elem in resultList])
+    meanrank = sum([elem[3] for elem in resultList])
+    meanrerank = sum([elem[4] for elem in resultList])
+
+    if head == 1 or head == 2:
+        return hit1, hit3, hit10, meanrank, meanrerank, len(testList)
+    else:
+        return hit1, hit3, hit10, meanrank, meanrerank, 2 * len(testList)
+

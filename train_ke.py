@@ -70,6 +70,7 @@ class Config(object):
         self.momentum = 0.9
         self.optimizer = optim.Adam
         self.loss_function = loss.marginLoss
+        self.loss_type = 0
         self.entity_total = 0
         self.relation_total = 0
         self.batch_size = 0
@@ -88,6 +89,8 @@ if __name__ == "__main__":
     num_processes: Number of processes used to evaluate the result.
     """
 
+    # score 0: TransE, 1: DistMult
+    argparser.add_argument('-sc', '--score', type=str, default=0)
     argparser.add_argument('-d', '--dataset', type=str)
     argparser.add_argument('-l', '--learning_rate', type=float, default=0.001)
     argparser.add_argument('-es', '--early_stopping_round', type=int, default=0)
@@ -115,6 +118,7 @@ if __name__ == "__main__":
     trainTotal, trainList, trainDict, trainTimes = load_quadruples('./data/icews_ke_date/', 'train.txt', 'train_tem.npy')
     quadrupleTotal, quadrupleList, tripleDict, _ = load_quadruples('./data/icews_ke_date/', 'train.txt', 'train_tem.npy', 'test.txt', 'test_tem.npy')
     config = Config()
+    config.score = args.score
     config.dataset = args.dataset
     config.learning_rate = args.learning_rate
 
@@ -151,7 +155,8 @@ if __name__ == "__main__":
     config.time_total = 32
     config.batch_size = trainTotal // config.num_batches
 
-    shareHyperparameters = {'dataset': args.dataset,
+    shareHyperparameters = {'score': args.score,
+        'dataset': args.dataset,
         'learning_rate': args.learning_rate,
         'early_stopping_round': args.early_stopping_round,
         'L1_flag': args.L1_flag,
@@ -178,21 +183,22 @@ if __name__ == "__main__":
 
     loss_function = config.loss_function()
 
-    # filename = '_'.join(
-    #     #     ['l', str(args.learning_rate),
-    #     #      'es', str(args.early_stopping_round),
-    #     #      'L', str(args.L1_flag),
-    #     #      'em', str(args.embedding_size),
-    #     #      'nb', str(args.num_batches),
-    #     #      'n', str(args.train_times),
-    #     #      'm', str(args.margin),
-    #     #      'f', str(args.filter),
-    #     #      'mo', str(args.momentum),
-    #     #      's', str(args.seed),
-    #     #      'op', str(args.optimizer),
-    #     #      'lo', str(args.loss_type),]) + '_TATransE.ckpt'
-    filename = 'TATransE.ckpt'
-    path_name = os.path.join('./model/' + args.dataset, filename)
+    filename = '_'.join(
+            ['score', str(args.score),
+             'dataset', str(args.dataset),
+             'l', str(args.learning_rate),
+             'es', str(args.early_stopping_round),
+             'L', str(args.L1_flag),
+             'em', str(args.embedding_size),
+             'nb', str(args.num_batches),
+             'n', str(args.train_times),
+             'm', str(args.margin),
+             'f', str(args.filter),
+             'mo', str(args.momentum),
+             's', str(args.seed),
+             'op', str(args.optimizer),
+             'lo', str(args.loss_type),]) + '_TATransE.ckpt'
+    path_name = os.path.join('./model/', filename)
     if os.path.exists(path_name):
         model = torch.load(path_name)
     else:
@@ -245,7 +251,6 @@ if __name__ == "__main__":
             rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
             rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
             losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings) + loss.normLoss(rseq_embeddings)
-
             losses.backward()
             optimizer.step()
             total_loss += losses.data
@@ -259,13 +264,33 @@ if __name__ == "__main__":
 
         # if (epoch + 1) % 10 == 0 or epoch == 0:
         #    torch.save(model, os.path.join('./model/', filename))
-        torch.save(model, os.path.join('./model/' + args.dataset, filename))
+        torch.save(model, os.path.join('./model/', filename))
 
     testTotal, testList, testDict, testTimes = load_quadruples('./data/icews_ke_date/', 'test.txt', 'test_tem.npy')
+    testBatchList = getBatchList(testList, config.num_batches)
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
 
-    hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, head=0)
+    # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, head=0)
+    hit1TestSum = 0
+    hit3TestSum = 0
+    hit10TestSum = 0
+    meanrankTestSum = 0
+    meanrerankTestSum = 0
+    batchNum = 0
+    for batchList in testBatchList:
+        hit1TestSubSum, hit3TestSubSum, hit10TestSubSum, meanrankTestSubSum, meanrerankTestSubSum, batchSubNum = evaluation_batch(batchList, tripleDict, model, ent_embeddings, head=0)
+        hit1TestSum += hit1TestSubSum
+        hit3TestSum += hit3TestSubSum
+        hit10TestSum += hit10TestSubSum
+        meanrankTestSum += meanrankTestSubSum
+        meanrerankTestSum += meanrerankTestSubSum
+        batchNum += batchSubNum
+    hit1Test = hit1TestSum / batchNum
+    hit3Test = hit3TestSum / batchNum
+    hit10Test = hit10TestSum / batchNum
+    meanrankTest = meanrankTestSum / batchNum
+    meanrerankTest = meanrerankTestSum / batchNum
 
     writeList = [filename,
         'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]

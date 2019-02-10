@@ -34,6 +34,7 @@ class LSTMModel(nn.Module):
 class TATransEModel(nn.Module):
 	def __init__(self, config):
 		super(TATransEModel, self).__init__()
+		self.score = config.score
 		self.learning_rate = config.learning_rate
 		self.early_stopping_round = config.early_stopping_round
 		self.L1_flag = config.L1_flag
@@ -76,6 +77,9 @@ class TATransEModel(nn.Module):
 			else:
 				result = torch.cat((result, data[i: i+unroll_len]), 0)
 		return result
+
+	def _calc(self, h, t, r):
+		return - torch.sum(h * t * r, -1)
 
 	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
 		pos_h_e = self.ent_embeddings(pos_h)
@@ -139,15 +143,31 @@ class TATransEModel(nn.Module):
 			else:
 				neg_rseq_e = torch.cat((neg_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
 
-		# L1 distance
-		if self.L1_flag:
-			pos = torch.sum(torch.abs(pos_h_e + pos_rseq_e - pos_t_e), 1)
-			neg = torch.sum(torch.abs(neg_h_e + pos_rseq_e - neg_t_e), 1)
-		# L2 distance
+		if self.score == 0:
+			# TranE score
+			# L1 distance
+			if self.L1_flag:
+				pos = torch.sum(torch.abs(pos_h_e + pos_rseq_e - pos_t_e), 1)
+				neg = torch.sum(torch.abs(neg_h_e + pos_rseq_e - neg_t_e), 1)
+			# L2 distance
+			else:
+				pos = torch.sum((pos_h_e + pos_rseq_e - pos_t_e) ** 2, 1)
+				neg = torch.sum((neg_h_e + pos_rseq_e - neg_t_e) ** 2, 1)
 		else:
-			pos = torch.sum((pos_h_e + pos_rseq_e - pos_t_e) ** 2, 1)
-			neg = torch.sum((neg_h_e + pos_rseq_e - neg_t_e) ** 2, 1)
+			# DistMult score
+			pos = torch.mm(pos_h_e * pos_t_e, pos_rseq_e.transpose(1, 0))
+			neg = torch.mm(neg_h_e * neg_t_e, neg_rseq_e.transpose(1, 0))
+
 		return pos, neg
+			# pos_num = list(pos_h.size())[0]
+			# neg_num = list(neg_h.size())[0]
+			# labels = torch.cat((torch.ones(pos_num, 1), torch.zeros(neg_num, 1)), 0).type(floatTensor).cuda()
+			# h_e = torch.cat((pos_h_e, neg_h_e), 0)
+			# t_e = torch.cat((pos_t_e, neg_t_e), 0)
+			# rseq_e = torch.cat((pos_rseq_e, neg_rseq_e), 0)
+			# score = self._calc(h_e, t_e, rseq_e)
+			# criterion = nn.Softplus()
+			# return torch.mean(criterion(score * labels))
 
 	def get_rseq(self, pos_r, pos_tem):
 		pos_r_e = self.rel_embeddings(pos_r)

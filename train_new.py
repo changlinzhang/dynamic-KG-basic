@@ -251,11 +251,11 @@ if __name__ == "__main__":
                 losses = loss_function(pos, neg)
 
             ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-            rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
+            # rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
             rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]),
                                              torch.cat([pos_time_batch, neg_time_batch]))
 
-            losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings) + loss.normLoss(rseq_embeddings)
+            losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
 
             losses.backward()
             optimizer.step()
@@ -292,10 +292,10 @@ if __name__ == "__main__":
             else:
                 losses = loss_function(pos, neg)
             ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-            rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
+            # rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
             rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]),
                                              torch.cat([pos_time_batch, neg_time_batch]))
-            losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings) + loss.normLoss(rseq_embeddings)
+            losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
             print("Valid batch loss: %d %f" % (epoch, losses.item()))
             # print("Valid batch loss: %d %f" % (epoch, losses.data[0]))
             # agent.append(validCurve, epoch, losses.data[0])

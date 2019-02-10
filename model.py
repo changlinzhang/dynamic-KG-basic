@@ -68,19 +68,6 @@ class TATransEModel(nn.Module):
 		self.rel_embeddings.weight.data = normalize_relation_emb
 		self.tem_embeddings.weight.data = normalize_temporal_emb
 
-	#TODO: should use tensor operations
-	def unroll(self, data, unroll_len = 5):
-		result = None
-		for i in range(len(data) - unroll_len):
-			if i == 0:
-				result = data[i: i+unroll_len]
-			else:
-				result = torch.cat((result, data[i: i+unroll_len]), 0)
-		return result
-
-	# def _calc(self, h, t, r):
-	# 	return - torch.sum(h * t * r, -1)
-
 	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)
@@ -95,11 +82,11 @@ class TATransEModel(nn.Module):
 			# L1 distance
 			if self.L1_flag:
 				pos = torch.sum(torch.abs(pos_h_e + pos_rseq_e - pos_t_e), 1)
-				neg = torch.sum(torch.abs(neg_h_e + pos_rseq_e - neg_t_e), 1)
+				neg = torch.sum(torch.abs(neg_h_e + neg_rseq_e - neg_t_e), 1)
 			# L2 distance
 			else:
 				pos = torch.sum((pos_h_e + pos_rseq_e - pos_t_e) ** 2, 1)
-				neg = torch.sum((neg_h_e + pos_rseq_e - neg_t_e) ** 2, 1)
+				neg = torch.sum((neg_h_e + neg_rseq_e - neg_t_e) ** 2, 1)
 		else:
 			# DistMult score
 			j = 0
@@ -124,6 +111,15 @@ class TATransEModel(nn.Module):
 			# print(pos.size())
 		return pos, neg
 
+	def unroll(self, data, unroll_len = 5):
+		result = None
+		for i in range(len(data) - unroll_len):
+			if i == 0:
+				result = data[i: i+unroll_len].unsqueeze(0)
+			else:
+				result = torch.cat((result, data[i: i+unroll_len].unsqueeze(0)), 0)
+		return result
+
 	def get_rseq(self, pos_r, pos_tem):
 		pos_r_e = self.rel_embeddings(pos_r)
 
@@ -145,7 +141,7 @@ class TATransEModel(nn.Module):
 		# add LSTM
 		for seq_e in pos_seq_e:
 			# unroll to get input for LSTM
-			input_tem = self.unroll(seq_e).unsqueeze(0)
+			input_tem = self.unroll(seq_e)
 			# input_tem = seq_e.unsqueeze(0) # unroll length = 1
 			hidden_tem = self.lstm(input_tem)
 			if isFirst:

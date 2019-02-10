@@ -78,70 +78,17 @@ class TATransEModel(nn.Module):
 				result = torch.cat((result, data[i: i+unroll_len]), 0)
 		return result
 
-	def _calc(self, h, t, r):
-		return - torch.sum(h * t * r, -1)
+	# def _calc(self, h, t, r):
+	# 	return - torch.sum(h * t * r, -1)
 
 	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)
-		pos_r_e = self.rel_embeddings(pos_r)
-
-		isFirst = True
-		pos_seq_e = None
-		i = 0
-		for tem in pos_tem:
-			seq_e = pos_r_e[i].unsqueeze(0)
-			for token in tem:
-				token_e = self.tem_embeddings(token)
-				seq_e = torch.cat((seq_e, token_e.unsqueeze(0)), 0)
-			if isFirst:
-				pos_seq_e = seq_e.unsqueeze(0)
-				isFirst = False
-			else:
-				pos_seq_e = torch.cat((pos_seq_e, seq_e.unsqueeze(0)), 0)
-
-		isFirst = True
-		pos_rseq_e = None
-		# add LSTM
-		for seq_e in pos_seq_e:
-			# unroll to get input for LSTM
-			input_tem = self.unroll(seq_e).unsqueeze(0)
-			# input_tem = seq_e.unsqueeze(0) # unroll length = 1
-			hidden_tem = self.lstm(input_tem)
-			if isFirst:
-				pos_rseq_e = hidden_tem[0,-1,:].unsqueeze(0)
-				isFirst = False
-			else:
-				pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
+		pos_rseq_e = self.get_rseq(pos_r, pos_tem)
 
 		neg_h_e = self.ent_embeddings(neg_h)
 		neg_t_e = self.ent_embeddings(neg_t)
-		neg_r_e = self.rel_embeddings(neg_r)
-		isFirst = True
-		neg_seq_e = None
-		i = 0
-		for tem in neg_tem:
-			seq_e = neg_r_e[i].unsqueeze(0)
-			for token in tem:
-				token_e = self.tem_embeddings(token)
-				seq_e = torch.cat((seq_e, token_e.unsqueeze(0)), 0)
-			if isFirst:
-				neg_seq_e = seq_e.unsqueeze(0)
-				isFirst = False
-			else:
-				neg_seq_e = torch.cat((neg_seq_e, seq_e.unsqueeze(0)), 0)
-
-		isFirst = True
-		neg_rseq_e = None
-		for seq_e in neg_seq_e:
-			# input_tem = seq_e.unsqueeze(0)
-			input_tem = self.unroll(seq_e).unsqueeze(0)
-			hidden_tem = self.lstm(input_tem)
-			if isFirst:
-				neg_rseq_e = hidden_tem[0,-1,:].unsqueeze(0)
-				isFirst = False
-			else:
-				neg_rseq_e = torch.cat((neg_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
+		neg_rseq_e = self.get_rseq(neg_r, neg_tem)
 
 		if self.score == 0:
 			# TranE score
@@ -155,24 +102,31 @@ class TATransEModel(nn.Module):
 				neg = torch.sum((neg_h_e + pos_rseq_e - neg_t_e) ** 2, 1)
 		else:
 			# DistMult score
-			pos = torch.mm(pos_h_e * pos_t_e, pos_rseq_e.transpose(1, 0))
-			neg = torch.mm(neg_h_e * neg_t_e, neg_rseq_e.transpose(1, 0))
-
+			j = 0
+			pos = None
+			for h_e in pos_h_e:
+				score = torch.squeeze(torch.mm((pos_h_e[j] * pos_t_e[j]).unsqueeze(0), pos_rseq_e[j].unsqueeze(0).transpose(1, 0)))
+				if j == 0:
+					pos = score.unsqueeze(0)
+				else:
+					pos = torch.cat((pos, score.unsqueeze(0)), 0)
+				j += 1
+			j = 0
+			neg = None
+			for h_e in neg_h_e:
+				score_m = torch.squeeze(torch.mm((neg_h_e[j] * neg_t_e[j]).unsqueeze(0), neg_rseq_e[j].unsqueeze(0).transpose(1, 0)))
+				score = score_m
+				if j == 0:
+					neg = score.unsqueeze(0)
+				else:
+					neg = torch.cat((neg, score.unsqueeze(0)), 0)
+				j += 1
+			# print(pos.size())
 		return pos, neg
-			# pos_num = list(pos_h.size())[0]
-			# neg_num = list(neg_h.size())[0]
-			# labels = torch.cat((torch.ones(pos_num, 1), torch.zeros(neg_num, 1)), 0).type(floatTensor).cuda()
-			# h_e = torch.cat((pos_h_e, neg_h_e), 0)
-			# t_e = torch.cat((pos_t_e, neg_t_e), 0)
-			# rseq_e = torch.cat((pos_rseq_e, neg_rseq_e), 0)
-			# score = self._calc(h_e, t_e, rseq_e)
-			# criterion = nn.Softplus()
-			# return torch.mean(criterion(score * labels))
 
 	def get_rseq(self, pos_r, pos_tem):
 		pos_r_e = self.rel_embeddings(pos_r)
 
-		isFirst = True
 		pos_seq_e = None
 		i = 0
 		for tem in pos_tem:
@@ -180,11 +134,11 @@ class TATransEModel(nn.Module):
 			for token in tem:
 				token_e = self.tem_embeddings(token)
 				seq_e = torch.cat((seq_e, token_e.unsqueeze(0)), 0)
-			if isFirst:
+			if i == 0:
 				pos_seq_e = seq_e.unsqueeze(0)
-				isFirst = False
 			else:
 				pos_seq_e = torch.cat((pos_seq_e, seq_e.unsqueeze(0)), 0)
+			i += 1
 
 		isFirst = True
 		pos_rseq_e = None

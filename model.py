@@ -45,6 +45,7 @@ class TATransEModel(nn.Module):
 		self.tem_total = 32
 		self.batch_size = config.batch_size
 
+		self.dropout = nn.Dropout(config.dropout)
 		self.lstm = LSTMModel(self.embedding_size, n_layer=1)
 
 		ent_weight = floatTensor(self.entity_total, self.embedding_size)
@@ -68,6 +69,11 @@ class TATransEModel(nn.Module):
 		self.rel_embeddings.weight.data = normalize_relation_emb
 		self.tem_embeddings.weight.data = normalize_temporal_emb
 
+	def distmulti_predict(self, e, rseq_e):
+		pred = torch.mm(e * rseq_e, self.ent_embeddings.weight.transpose(1, 0))
+		pred = F.sigmoid(pred)
+		return pred
+
 	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)
@@ -76,6 +82,13 @@ class TATransEModel(nn.Module):
 		neg_h_e = self.ent_embeddings(neg_h)
 		neg_t_e = self.ent_embeddings(neg_t)
 		neg_rseq_e = self.get_rseq(neg_r, neg_tem)
+
+		pos_h_e = self.dropout(pos_h_e)
+		pos_t_e = self.dropout(pos_t_e)
+		pos_rseq_e = self.dropout(pos_rseq_e)
+		neg_h_e = self.dropout(neg_h_e)
+		neg_t_e = self.dropout(neg_t_e)
+		neg_rseq_e = self.dropout(neg_rseq_e)
 
 		if self.score == 0:
 			# TranE score
@@ -111,7 +124,7 @@ class TATransEModel(nn.Module):
 			# print(pos.size())
 		return pos, neg
 
-	def unroll(self, data, unroll_len = 5):
+	def unroll(self, data, unroll_len=4):
 		result = None
 		for i in range(len(data) - unroll_len):
 			if i == 0:

@@ -58,6 +58,8 @@ self.batch_size: How many instances is contained in one batch?
 
 class Config(object):
     def __init__(self):
+        self.dropout = 0
+        self.score = 0
         self.dataset = None
         self.learning_rate = 0.001
         self.early_stopping_round = 0
@@ -90,6 +92,7 @@ if __name__ == "__main__":
     """
 
     # score 0: TransE, 1: DistMult
+    argparser.add_argument('-dr', '--dropout', type=float, default=0)
     argparser.add_argument('-sc', '--score', type=str, default=0)
     argparser.add_argument('-d', '--dataset', type=str)
     argparser.add_argument('-l', '--learning_rate', type=float, default=0.001)
@@ -119,6 +122,7 @@ if __name__ == "__main__":
     validTotal, validList, validDict, validTimes = load_quadruples('./data/icews14/', 'valid2id.txt', 'valid_tem.npy')
     quadrupleTotal, quadrupleList, tripleDict, _ = load_quadruples('./data/icews14/', 'train2id.txt', 'train_tem.npy', 'valid2id.txt', 'valid_tem.npy', 'test2id.txt', 'test_tem.npy')
     config = Config()
+    config.dropout = args.dropout
     config.score = args.score
     config.dataset = args.dataset
     config.learning_rate = args.learning_rate
@@ -156,7 +160,8 @@ if __name__ == "__main__":
     config.time_total = 32
     config.batch_size = trainTotal // config.num_batches
 
-    shareHyperparameters = {'score': args.score,
+    shareHyperparameters = {'dropout': args.dropout,
+        'score': args.score,
         'dataset': args.dataset,
         'learning_rate': args.learning_rate,
         'early_stopping_round': args.early_stopping_round,
@@ -185,7 +190,8 @@ if __name__ == "__main__":
     loss_function = config.loss_function()
 
     filename = '_'.join(
-            ['score', str(args.score),
+            ['dropout', str(args.dropout),
+             'score', str(args.score),
              'dataset', str(args.dataset),
              'l', str(args.learning_rate),
              'es', str(args.early_stopping_round),
@@ -217,6 +223,7 @@ if __name__ == "__main__":
     trainBatchList = getBatchList(trainList, config.num_batches)
 
     for epoch in range(config.train_times):
+        model.train()
         total_loss = floatTensor([0.0])
         random.shuffle(trainBatchList)
         for batchList in trainBatchList:
@@ -348,6 +355,7 @@ if __name__ == "__main__":
         elif (epoch + 1) % 5 == 0 or epoch == 0:
             torch.save(model, os.path.join('./model/', filename))
 
+    model.eval()
     testTotal, testList, testDict, testTimes = load_quadruples('./data/icews14/', 'test2id.txt', 'test_tem.npy')
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()

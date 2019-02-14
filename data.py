@@ -54,13 +54,20 @@ def corrupt_tail_filter(quadruple, entityTotal, quadrupleDict):
     return newQuadruple
 
 # Split the tripleList into #num_batches batches
-def getBatchList(tripleList, num_batches):
-    batchSize = len(tripleList) // num_batches
-    batchList = [0] * num_batches
-    for i in range(num_batches - 1):
-        batchList[i] = tripleList[i * batchSize : (i + 1) * batchSize]
-    batchList[num_batches - 1] = tripleList[(num_batches - 1) * batchSize : ]
-    return batchList
+# def getBatchList(tripleList, num_batches):
+#     batchSize = len(tripleList) // num_batches
+#     batchList = [0] * num_batches
+#     for i in range(num_batches - 1):
+#         batchList[i] = tripleList[i * batchSize : (i + 1) * batchSize]
+#     batchList[num_batches - 1] = tripleList[(num_batches - 1) * batchSize : ]
+#     return batchList
+def getBatchList(tripleList, batch_size):
+	num_batches = len(tripleList) // batch_size + 1
+	batchList = [0] * num_batches
+	for i in range(num_batches - 1):
+		batchList[i] = tripleList[i * batch_size : (i + 1) * batch_size]
+	batchList[num_batches - 1] = tripleList[(num_batches - 1) * batch_size : ]
+	return batchList
 
 def getFourElements(quadrupleList):
     headList = [quadruple.s for quadruple in quadrupleList]

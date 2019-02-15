@@ -100,28 +100,6 @@ class TATransEModel(nn.Module):
 			else:
 				pos = torch.sum((pos_h_e + pos_rseq_e - pos_t_e) ** 2, 1)
 				neg = torch.sum((neg_h_e + neg_rseq_e - neg_t_e) ** 2, 1)
-		else:
-			# DistMult score
-			j = 0
-			pos = None
-			for h_e in pos_h_e:
-				score = torch.squeeze(torch.mm((pos_h_e[j] * pos_t_e[j]).unsqueeze(0), pos_rseq_e[j].unsqueeze(0).transpose(1, 0)))
-				if j == 0:
-					pos = score.unsqueeze(0)
-				else:
-					pos = torch.cat((pos, score.unsqueeze(0)), 0)
-				j += 1
-			j = 0
-			neg = None
-			for h_e in neg_h_e:
-				score_m = torch.squeeze(torch.mm((neg_h_e[j] * neg_t_e[j]).unsqueeze(0), neg_rseq_e[j].unsqueeze(0).transpose(1, 0)))
-				score = score_m
-				if j == 0:
-					neg = score.unsqueeze(0)
-				else:
-					neg = torch.cat((neg, score.unsqueeze(0)), 0)
-				j += 1
-			# print(pos.size())
 		return pos, neg
 
 	def unroll(self, data, unroll_len=4):
@@ -133,36 +111,75 @@ class TATransEModel(nn.Module):
 				result = torch.cat((result, data[i: i+unroll_len].unsqueeze(0)), 0)
 		return result
 
-	def get_rseq(self, pos_r, pos_tem):
+	def get_rseq(self, pos_r, pos_tem, unroll_len=4):
 		pos_r_e = self.rel_embeddings(pos_r)
+		pos_r_e = pos_r_e.unsqueeze(0).transpose(0, 1)
 
-		pos_seq_e = None
-		i = 0
-		for tem in pos_tem:
-			seq_e = pos_r_e[i].unsqueeze(0)
-			for token in tem:
-				token_e = self.tem_embeddings(token)
-				seq_e = torch.cat((seq_e, token_e.unsqueeze(0)), 0)
-			if i == 0:
-				pos_seq_e = seq_e.unsqueeze(0)
-			else:
-				pos_seq_e = torch.cat((pos_seq_e, seq_e.unsqueeze(0)), 0)
-			i += 1
+		bs = pos_tem.shape[0] # batch size
+		tem_len = pos_tem.shape[1]
+		pos_tem = pos_tem.view(bs * tem_len)
+		token_e = self.tem_embeddings(pos_tem)
+		token_e = token_e.view(bs, tem_len, self.embedding_size)
+		pos_seq_e = torch.cat((pos_r_e, token_e), 1)
 
 		isFirst = True
-		pos_rseq_e = None
-		# add LSTM
+		unroll_pos_seq_e = None
 		for seq_e in pos_seq_e:
 			# unroll to get input for LSTM
 			input_tem = self.unroll(seq_e)
-			# input_tem = seq_e.unsqueeze(0) # unroll length = 1
-			hidden_tem = self.lstm(input_tem)
 			if isFirst:
-				pos_rseq_e = hidden_tem[0,-1,:].unsqueeze(0)
+				unroll_pos_seq_e = input_tem.unsqueeze(0)
 				isFirst = False
 			else:
-				pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
+				unroll_pos_seq_e = torch.cat((unroll_pos_seq_e, input_tem.unsqueeze(0)), 0)
+
+		unroll_pos_seq_e = unroll_pos_seq_e.view(bs*(tem_len+1-unroll_len), unroll_len, self.embedding_size)
+		hidden_tem = self.lstm(unroll_pos_seq_e)
+		hidden_tem = hidden_tem[0, :, :]
+		isFirst = True
+		pos_rseq_e = None
+		# add LSTM
+		for i in range(0, hidden_tem.shape[0]):
+			if (i+1) % 4 == 0:
+				if isFirst:
+					pos_rseq_e = hidden_tem[i,:].unsqueeze(0)
+					isFirst = False
+				else:
+					pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[i,:].unsqueeze(0)), 0)
+		# print(pos_rseq_e.size())
 		return pos_rseq_e
+
+	# def get_rseq(self, pos_r, pos_tem):
+	# 	pos_r_e = self.rel_embeddings(pos_r)
+	#
+	# 	pos_seq_e = None
+	# 	i = 0
+	# 	for tem in pos_tem:
+	# 		seq_e = pos_r_e[i].unsqueeze(0)
+	# 		for token in tem:
+	# 			token_e = self.tem_embeddings(token)
+	# 			seq_e = torch.cat((seq_e, token_e.unsqueeze(0)), 0)
+	# 		if i == 0:
+	# 			pos_seq_e = seq_e.unsqueeze(0)
+	# 		else:
+	# 			pos_seq_e = torch.cat((pos_seq_e, seq_e.unsqueeze(0)), 0)
+	# 		i += 1
+	#
+	# 	isFirst = True
+	# 	pos_rseq_e = None
+	# 	# add LSTM
+	# 	for seq_e in pos_seq_e:
+	# 		# unroll to get input for LSTM
+	# 		input_tem = self.unroll(seq_e)
+	# 		# input_tem = seq_e.unsqueeze(0) # unroll length = 1
+	# 		hidden_tem = self.lstm(input_tem)
+	# 		if isFirst:
+	# 			pos_rseq_e = hidden_tem[0,-1,:].unsqueeze(0)
+	# 			isFirst = False
+	# 		else:
+	# 			pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[0,-1,:].unsqueeze(0)), 0)
+	# 	# print(pos_rseq_e)
+	# 	return pos_rseq_e
 
 
 class TransEModel(nn.Module):

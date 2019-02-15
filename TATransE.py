@@ -199,7 +199,8 @@ if __name__ == "__main__":
              's', str(args.seed),
              'op', str(args.optimizer),
              'lo', str(args.loss_type),]) + '_TATransE.ckpt'
-    path_name = os.path.join('./model/' + args.dataset, filename)
+    # path_name = os.path.join('./model/' + args.dataset, filename)
+    path_name = os.path.join('./model/', filename)
     if os.path.exists(path_name):
         model = torch.load(path_name)
     else:
@@ -261,43 +262,44 @@ if __name__ == "__main__":
                 optimizer.step()
                 total_loss += losses.data
 
-            # if epoch % 10 == 0:
-            now_time = time.time()
-            print(now_time - start_time)
-            print("Train total loss: %d %f" % (epoch, total_loss[0]))
+            if epoch % 1 == 0:
+                now_time = time.time()
+                print(now_time - start_time)
+                print("Train total loss: %d %f" % (epoch, total_loss[0]))
 
-            # if (epoch + 1) % 10 == 0 or epoch == 0:
+            if (epoch + 1) % 5 == 0 or epoch == 0:
             #    torch.save(model, os.path.join('./model/', filename))
-            torch.save(model, os.path.join('./model/', filename))
+                torch.save(model, os.path.join('./model/', filename))
 
     model.eval()
     testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset, 'test2id.txt', 'test_tem.npy')
-    testBatchList = getBatchList(testList, config.num_batches)
+    # testBatchList = getBatchList(testList, config.num_batches)
+    testBatchList = getBatchList(trainList, config.batch_size)
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
     L1_flag = model.L1_flag
     filter = model.filter
 
-    # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, head=0)
-    hit1TestSum = 0
-    hit3TestSum = 0
-    hit10TestSum = 0
-    meanrankTestSum = 0
-    meanrerankTestSum = 0
-    batchNum = 0
-    for batchList in testBatchList:
-        hit1TestSubSum, hit3TestSubSum, hit10TestSubSum, meanrankTestSubSum, meanrerankTestSubSum, batchSubNum = evaluation_batch(batchList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
-        hit1TestSum += hit1TestSubSum
-        hit3TestSum += hit3TestSubSum
-        hit10TestSum += hit10TestSubSum
-        meanrankTestSum += meanrankTestSubSum
-        meanrerankTestSum += meanrerankTestSubSum
-        batchNum += batchSubNum
-    hit1Test = hit1TestSum / batchNum
-    hit3Test = hit3TestSum / batchNum
-    hit10Test = hit10TestSum / batchNum
-    meanrankTest = meanrankTestSum / batchNum
-    meanrerankTest = meanrerankTestSum / batchNum
+    hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+    # hit1TestSum = 0
+    # hit3TestSum = 0
+    # hit10TestSum = 0
+    # meanrankTestSum = 0
+    # meanrerankTestSum = 0
+    # batchNum = 0
+    # for batchList in testBatchList:
+    #     hit1TestSubSum, hit3TestSubSum, hit10TestSubSum, meanrankTestSubSum, meanrerankTestSubSum, batchSubNum = evaluation_batch(batchList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+    #     hit1TestSum += hit1TestSubSum
+    #     hit3TestSum += hit3TestSubSum
+    #     hit10TestSum += hit10TestSubSum
+    #     meanrankTestSum += meanrankTestSubSum
+    #     meanrerankTestSum += meanrerankTestSubSum
+    #     batchNum += batchSubNum
+    # hit1Test = hit1TestSum / batchNum
+    # hit3Test = hit3TestSum / batchNum
+    # hit10Test = hit10TestSum / batchNum
+    # meanrankTest = meanrankTestSum / batchNum
+    # meanrerankTest = meanrerankTestSum / batchNum
 
     writeList = [filename,
         'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]

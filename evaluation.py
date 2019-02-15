@@ -166,7 +166,7 @@ def process_data(testList, tripleDict, model, ent_embeddings, L1_flag, filter, L
 
 
 # Use multiprocessing to speed up evaluation
-def evaluation(testList, tripleDict, model, ent_embeddings, k=0, head=0):
+def evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, k=0, head=0):
     # embeddings are numpy like
 
     if k > len(testList):
@@ -175,7 +175,7 @@ def evaluation(testList, tripleDict, model, ent_embeddings, k=0, head=0):
         testList = random.sample(testList, k=k)
 
     L = []
-    process_data(testList, tripleDict, model, ent_embeddings, L, head)
+    process_data(testList, tripleDict, model, ent_embeddings, L1_flag, filter, L, head)
 
     resultList = list(L)
 

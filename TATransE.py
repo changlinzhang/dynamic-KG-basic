@@ -199,8 +199,8 @@ if __name__ == "__main__":
              's', str(args.seed),
              'op', str(args.optimizer),
              'lo', str(args.loss_type),]) + '_TATransE.ckpt'
-    # path_name = os.path.join('./model/' + args.dataset, filename)
-    path_name = os.path.join('./model/', filename)
+    path_name = os.path.join('./model/' + args.dataset, filename)
+    # path_name = os.path.join('./model/', filename)
     if os.path.exists(path_name):
         model = torch.load(path_name)
     else:
@@ -262,14 +262,14 @@ if __name__ == "__main__":
                 optimizer.step()
                 total_loss += losses.data
 
-            if epoch % 1 == 0:
+            if epoch % 5 == 0:
                 now_time = time.time()
                 print(now_time - start_time)
                 print("Train total loss: %d %f" % (epoch, total_loss[0]))
 
             if (epoch + 1) % 5 == 0 or epoch == 0:
             #    torch.save(model, os.path.join('./model/', filename))
-                torch.save(model, os.path.join('./model/', filename))
+                torch.save(model, os.path.join('./model/' + args.dataset, filename))
 
     model.eval()
     testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset, 'test2id.txt', 'test_tem.npy')

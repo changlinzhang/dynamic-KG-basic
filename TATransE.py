@@ -115,7 +115,7 @@ if __name__ == "__main__":
         torch.manual_seed(args.seed)
 
     trainTotal, trainList, trainDict, trainTimes = load_quadruples('./data/' + args.dataset, 'train2id.txt', 'train_tem.npy')
-    quadrupleTotal, quadrupleList, tripleDict, _ = load_quadruples('./data/' + args.dataset, 'train2id.txt', 'train_tem.npy')
+    quadrupleTotal, quadrupleList, tripleDict, _ = load_quadruples('./data/' + args.dataset, 'train2id.txt', 'train_tem.npy', 'test2id.txt', 'test_tem.npy')
     config = Config()
     config.dropout = args.dropout
     config.score = args.score
@@ -274,32 +274,32 @@ if __name__ == "__main__":
     model.eval()
     testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset, 'test2id.txt', 'test_tem.npy')
     # testBatchList = getBatchList(testList, config.num_batches)
-    testBatchList = getBatchList(trainList, config.batch_size)
+    testBatchList = getBatchList(testList, config.batch_size)
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
     L1_flag = model.L1_flag
     filter = model.filter
 
-    hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
-    # hit1TestSum = 0
-    # hit3TestSum = 0
-    # hit10TestSum = 0
-    # meanrankTestSum = 0
-    # meanrerankTestSum = 0
-    # batchNum = 0
-    # for batchList in testBatchList:
-    #     hit1TestSubSum, hit3TestSubSum, hit10TestSubSum, meanrankTestSubSum, meanrerankTestSubSum, batchSubNum = evaluation_batch(batchList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
-    #     hit1TestSum += hit1TestSubSum
-    #     hit3TestSum += hit3TestSubSum
-    #     hit10TestSum += hit10TestSubSum
-    #     meanrankTestSum += meanrankTestSubSum
-    #     meanrerankTestSum += meanrerankTestSubSum
-    #     batchNum += batchSubNum
-    # hit1Test = hit1TestSum / batchNum
-    # hit3Test = hit3TestSum / batchNum
-    # hit10Test = hit10TestSum / batchNum
-    # meanrankTest = meanrankTestSum / batchNum
-    # meanrerankTest = meanrerankTestSum / batchNum
+    # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+    hit1TestSum = 0
+    hit3TestSum = 0
+    hit10TestSum = 0
+    meanrankTestSum = 0
+    meanrerankTestSum = 0
+    batchNum = 2*len(testList)
+    for batchList in testBatchList:
+        hit1TestSubSum, hit3TestSubSum, hit10TestSubSum, meanrankTestSubSum, meanrerankTestSubSum, batchSubNum = evaluation_batch(batchList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+        hit1TestSum += hit1TestSubSum
+        hit3TestSum += hit3TestSubSum
+        hit10TestSum += hit10TestSubSum
+        meanrankTestSum += meanrankTestSubSum
+        meanrerankTestSum += meanrerankTestSubSum
+        # batchNum += batchSubNum
+    hit1Test = hit1TestSum / batchNum
+    hit3Test = hit3TestSum / batchNum
+    hit10Test = hit10TestSum / batchNum
+    meanrankTest = meanrankTestSum / batchNum
+    meanrerankTest = meanrerankTestSum / batchNum
 
     writeList = [filename,
         'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]

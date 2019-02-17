@@ -8,6 +8,7 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from LSTMLinear import LSTMModel
 
 USE_CUDA = torch.cuda.is_available()
 if USE_CUDA:
@@ -19,16 +20,16 @@ else:
 	floatTensor = torch.FloatTensor
 
 
-class LSTMModel(nn.Module):
-	def __init__(self, in_dim, n_layer):
-		super(LSTMModel, self).__init__()
-		self.n_layer = n_layer
-		self.hidden_dim = in_dim
-		self.lstm = nn.LSTM(in_dim, self.hidden_dim, n_layer, batch_first=True)
-
-	def forward(self, x):
-		out, h = self.lstm(x)
-		return h[0]
+# class LSTMModel(nn.Module):
+# 	def __init__(self, in_dim, n_layer):
+# 		super(LSTMModel, self).__init__()
+# 		self.n_layer = n_layer
+# 		self.hidden_dim = in_dim
+# 		self.lstm = nn.LSTM(in_dim, self.hidden_dim, n_layer, batch_first=True)
+#
+# 	def forward(self, x):
+# 		out, h = self.lstm(x)
+# 		return h[0]
 
 
 class TATransEModel(nn.Module):
@@ -146,7 +147,7 @@ class TATransEModel(nn.Module):
 					isFirst = False
 				else:
 					pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[i,:].unsqueeze(0)), 0)
-		# print(pos_rseq_e.size())
+		# print(pos_rseq_e)
 		return pos_rseq_e
 
 	# def get_rseq(self, pos_r, pos_tem):

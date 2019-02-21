@@ -122,33 +122,41 @@ class TATransEModel(nn.Module):
 		token_e = self.tem_embeddings(pos_tem)
 		token_e = token_e.view(bs, tem_len, self.embedding_size)
 		pos_seq_e = torch.cat((pos_r_e, token_e), 1)
+		# print(pos_seq_e.size())
 
-		isFirst = True
-		unroll_pos_seq_e = None
-		for seq_e in pos_seq_e:
-			# unroll to get input for LSTM
-			input_tem = self.unroll(seq_e)
-			if isFirst:
-				unroll_pos_seq_e = input_tem.unsqueeze(0)
-				isFirst = False
-			else:
-				unroll_pos_seq_e = torch.cat((unroll_pos_seq_e, input_tem.unsqueeze(0)), 0)
-
-		unroll_pos_seq_e = unroll_pos_seq_e.view(bs*(tem_len+1-unroll_len), unroll_len, self.embedding_size)
-		hidden_tem = self.lstm(unroll_pos_seq_e)
+		hidden_tem = self.lstm(pos_seq_e)
 		hidden_tem = hidden_tem[0, :, :]
-		isFirst = True
-		pos_rseq_e = None
-		# add LSTM
-		for i in range(0, hidden_tem.shape[0]):
-			if (i+1) % 4 == 0:
-				if isFirst:
-					pos_rseq_e = hidden_tem[i,:].unsqueeze(0)
-					isFirst = False
-				else:
-					pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[i,:].unsqueeze(0)), 0)
+		pos_rseq_e = hidden_tem
+
 		# print(pos_rseq_e)
 		return pos_rseq_e
+
+		# isFirst = True
+		# unroll_pos_seq_e = None
+		# for seq_e in pos_seq_e:
+		# 	# unroll to get input for LSTM
+		# 	input_tem = self.unroll(seq_e)
+		# 	# print(input_tem)
+		# 	if isFirst:
+		# 		unroll_pos_seq_e = input_tem.unsqueeze(0)
+		# 		isFirst = False
+		# 	else:
+		# 		unroll_pos_seq_e = torch.cat((unroll_pos_seq_e, input_tem.unsqueeze(0)), 0)
+		#
+		# unroll_pos_seq_e = unroll_pos_seq_e.view(bs*(tem_len+1-unroll_len), unroll_len, self.embedding_size)
+
+		# hidden_tem = self.lstm(unroll_pos_seq_e)
+		# hidden_tem = hidden_tem[0, :, :]
+		# isFirst = True
+		# pos_rseq_e = None
+		# # add LSTM
+		# for i in range(0, hidden_tem.shape[0]):
+		# 	if (i+1) % unroll_len == 0:
+		# 		if isFirst:
+		# 			pos_rseq_e = hidden_tem[i,:].unsqueeze(0)
+		# 			isFirst = False
+		# 		else:
+		# 			pos_rseq_e = torch.cat((pos_rseq_e, hidden_tem[i,:].unsqueeze(0)), 0)
 
 	# def get_rseq(self, pos_r, pos_tem):
 	# 	pos_r_e = self.rel_embeddings(pos_r)

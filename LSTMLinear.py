@@ -13,9 +13,8 @@ class LSTMModel(nn.Module):
         super(LSTMModel, self).__init__()
         self.n_layer = n_layer
         self.hidden_dim = in_dim
-        # print("yes")
-        self.lstm = nn.LSTM(in_dim, self.hidden_dim, n_layer, batch_first=True)
-        # self.lstm = LSTMLinear(in_dim, self.hidden_dim)
+        # self.lstm = nn.LSTM(in_dim, self.hidden_dim, n_layer, batch_first=True)
+        self.lstm = LSTMLinear(in_dim, self.hidden_dim)
 
     def forward(self, x):
         # print(x.size())
@@ -35,7 +34,6 @@ class LSTMCell(nn.Module):
         self.h2h = nn.Linear(hidden_size, 4 * hidden_size, bias=bias)
         self.linear_acti = nn.Linear(hidden_size, hidden_size)
         self.reset_parameters()
-        # print("yes")
 
     def reset_parameters(self):
         std = 1.0 / math.sqrt(self.hidden_size)
@@ -67,12 +65,10 @@ class LSTMCell(nn.Module):
         o_t = gates[:, -self.hidden_size:]
 
         c_t = th.mul(c, f_t) + th.mul(i_t, g_t)
-
         h_t = th.mul(o_t, self.linear_acti(c_t))
 
         h_t = h_t.view(1, h_t.size(0), -1)
         c_t = c_t.view(1, c_t.size(0), -1)
-        # print("yes")
         return h_t, c_t
 
     @staticmethod

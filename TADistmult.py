@@ -246,16 +246,16 @@ if __name__ == "__main__":
                 neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
 
                 model.zero_grad()
-                pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
 
-                if args.loss_type == 0:
-                    losses = model.loss(pos, neg)
+                label = torch.zeros(pos_h_batch.size(0)).type(torch.LongTensor).cuda()
+                loss = torch.sum(model.softmax_loss(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, label))
                 ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-                rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
-                losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
-                losses.backward()
+                rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]),
+                                                 torch.cat([pos_time_batch, neg_time_batch]))
+                loss = loss + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
+                loss.backward()
                 optimizer.step()
-                total_loss += losses.data
+                total_loss += loss.data
 
             if epoch % 5 == 0:
                 now_time = time.time()

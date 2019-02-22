@@ -60,6 +60,18 @@ class TADistmultModel(nn.Module):
 		self.rel_embeddings.weight.data = normalize_relation_emb
 		self.tem_embeddings.weight.data = normalize_temporal_emb
 
+	def prob_logit(self, src, dst, rel, tem):
+		return torch.sum(self.ent_embeddings(dst) * self.ent_embeddings(src) * self.get_rseq(rel, tem), dim=-1)
+
+	def prob(self, src, dst, rel, tem):
+		return F.softmax(self.prob_logit(src, dst, rel, tem))
+
+	def softmax_loss(self, src, dst, rel, tem, truth):
+		probs = self.prob(src, dst, rel, tem)
+		n = probs.size(0)
+		truth_probs = torch.log(probs[torch.arange(0, n).type(torch.LongTensor).cuda(), truth] + 1e-30)
+		return -truth_probs
+
 	def predict(self, e, r, tem):
 		e_e = self.ent_embeddings(e)
 		rseq_e = self.get_rseq(r, tem)

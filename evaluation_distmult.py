@@ -7,6 +7,7 @@ import multiprocessing
 import math
 import torch
 import torch.autograd as autograd
+from torch.autograd import Variable
 
 from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
 
@@ -99,72 +100,76 @@ def pairwise_L2_distances(A, B):
     return dist
 
 
-def evaluation_helper(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0):
-    # embeddings are numpy likre
-    headList, tailList, relList, timeList = getFourElements(testList)
-    h_e = ent_embeddings[headList]
-    t_e = ent_embeddings[tailList]
-
-    test_r_batch = autograd.Variable(longTensor(relList))
-    test_time_batch = autograd.Variable(longTensor(timeList))
-
-    rseq_e = model.get_rseq(test_r_batch, test_time_batch).data.cpu().numpy()
-
-    c_t_e = h_e + rseq_e
-    c_h_e = t_e - rseq_e
-    if L1_flag == True:
-        dist = pairwise_distances(c_t_e, ent_embeddings, metric='manhattan')
-    else:
-        dist = pairwise_distances(c_t_e, ent_embeddings, metric='euclidean')
-
-    rankArrayTail = np.argsort(dist, axis=1)
-    if filter == False:
-        rankListTail = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(tailList, rankArrayTail)]
-    else:
-        rankListTail = [argwhereTail(elem[0], elem[1], elem[2], elem[3], tripleDict)
-                        for elem in zip(headList, tailList, relList, rankArrayTail)]
-
-    isHit1ListTail = [x for x in rankListTail if x < 1]
-    isHit3ListTail = [x for x in rankListTail if x < 3]
-    isHit10ListTail = [x for x in rankListTail if x < 10]
-
-    if L1_flag == True:
-        dist = pairwise_distances(c_h_e, ent_embeddings, metric='manhattan')
-    else:
-        dist = pairwise_distances(c_h_e, ent_embeddings, metric='euclidean')
-
-    rankArrayHead = np.argsort(dist, axis=1)
-    if filter == False:
-        rankListHead = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(headList, rankArrayHead)]
-    else:
-        rankListHead = [argwhereHead(elem[0], elem[1], elem[2], elem[3], tripleDict)
-                        for elem in zip(headList, tailList, relList, rankArrayHead)]
-
-    re_rankListHead = [1.0/(x+1) for x in rankListHead]
-    re_rankListTail = [1.0/(x+1) for x in rankListTail]
-
-    isHit1ListHead = [x for x in rankListHead if x < 1]
-    isHit3ListHead = [x for x in rankListHead if x < 3]
-    isHit10ListHead = [x for x in rankListHead if x < 10]
-
-    totalRank = sum(rankListTail) + sum(rankListHead)
-    totalReRank = sum(re_rankListHead) + sum(re_rankListTail)
-    hit1Count = len(isHit1ListTail) + len(isHit1ListHead)
-    hit3Count = len(isHit3ListTail) + len(isHit3ListHead)
-    hit10Count = len(isHit10ListTail) + len(isHit10ListHead)
-    tripleCount = len(rankListTail) + len(rankListHead)
-
-    return hit1Count, hit3Count, hit10Count, totalRank, totalReRank, tripleCount
+def mrr_mr_hitk(scores, target, k=10):
+    _, sorted_idx = torch.sort(scores)
+    find_target = sorted_idx == target
+    target_rank = torch.nonzero(find_target)[0, 0]
+    return 1 / (target_rank+1), target_rank, int(target_rank < 1), int(target_rank < 3), int(target_rank < 10)
 
 
-def process_data(testList, tripleDict, model, ent_embeddings, L1_flag, filter, L, head):
-    hit1Count, hit3Count, hit10Count, totalRank, totalReRank, tripleCount = evaluation_helper(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head)
+def evaluation_helper(testList, tripleDict, model, ent_embeddings, n_ent, L1_flag, filter, head=0):
+    batch_s, batch_t, batch_r, batch_tem = getFourElements(testList)
+
+    mrr_tot = 0
+    mr_tot = 0
+    hit1_tot = 0
+    hit3_tot = 0
+    hit10_tot = 0
+    count = 0
+
+    batch_size = len(batch_s)
+    batch_r = Variable(longTensor(batch_r).cuda())
+    batch_s = Variable(longTensor(batch_s).cuda())
+    batch_t = Variable(longTensor(batch_t).cuda())
+    batch_tem = Variable(longTensor(batch_tem).cuda())
+    rel_var = Variable(batch_r.unsqueeze(1).expand(batch_size, n_ent).cuda())
+    tem_var = Variable(batch_tem.unsqueeze(1).expand(batch_size, n_ent, batch_tem.size(-1)).cuda())
+    src_var = Variable(batch_s.unsqueeze(1).expand(batch_size, n_ent).cuda())
+    dst_var = Variable(batch_t.unsqueeze(1).expand(batch_size, n_ent).cuda())
+    all_var = Variable(torch.arange(0, n_ent).unsqueeze(0).expand(batch_size, n_ent)
+                       .type(torch.LongTensor).cuda(), volatile=True)
+    batch_dst_scores = []
+    batch_src_scores = []
+    for i in range(batch_size):
+        dst_scores = model.score(src_var[i], all_var[i], rel_var[i], tem_var[i]).data
+        src_scores = model.score(all_var[i], dst_var[i], rel_var[i], tem_var[i]).data
+        batch_dst_scores.append(dst_scores)
+        batch_src_scores.append(src_scores)
+    for s, r, t, dst_scores, src_scores in zip(batch_s, batch_r, batch_t, batch_dst_scores, batch_src_scores):
+        # if filt:
+        #     if tails[(s, r)]._nnz() > 1:
+        #         tmp = dst_scores[t]
+        #         dst_scores += tails[(s, r)].cuda() * 1e30
+        #         dst_scores[t] = tmp
+        #     if heads[(t, r)]._nnz() > 1:
+        #         tmp = src_scores[s]
+        #         src_scores += heads[(t, r)].cuda() * 1e30
+        #         src_scores[s] = tmp
+        mrr, mr, hit1, hit3, hit10 = mrr_mr_hitk(dst_scores, t)
+        mrr_tot += mrr
+        mr_tot += mr
+        hit1_tot += hit1
+        hit3_tot += hit3
+        hit10_tot += hit10
+        mrr, mr, hit1, hit3, hit10 = mrr_mr_hitk(src_scores, s)
+        mrr_tot += mrr
+        mr_tot += mr
+        hit1_tot += hit1
+        hit3_tot += hit3
+        hit10_tot += hit10
+        count += 2
+
+    return hit1_tot, hit3_tot, hit10_tot, mr_tot, mrr_tot, count
+
+
+def process_data(testList, tripleDict, model, ent_embeddings, n_ent, L1_flag, filter, L, head):
+    hit1Count, hit3Count, hit10Count, totalRank, totalReRank, tripleCount = evaluation_helper(testList, tripleDict, model, ent_embeddings, n_ent, L1_flag, filter, head)
 
     L.append((hit1Count, hit3Count, hit10Count, totalRank, totalReRank, tripleCount))
 
 
 # Use multiprocessing to speed up evaluation
-def evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, k=0, head=0):
+def evaluation(testList, tripleDict, model, ent_embeddings, n_ent, L1_flag, filter, k=0, head=0):
     # embeddings are numpy like
 
     if k > len(testList):
@@ -173,7 +178,7 @@ def evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, k=0
         testList = random.sample(testList, k=k)
 
     L = []
-    process_data(testList, tripleDict, model, ent_embeddings, L1_flag, filter, L, head)
+    process_data(testList, tripleDict, model, ent_embeddings, n_ent, L1_flag, filter, L, head)
 
     resultList = list(L)
 
@@ -205,7 +210,7 @@ def evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, k=0
     return hit1, hit3, hit10, meanrank, meanrerank
 
 
-def evaluation_batch(testList, tripleDict, model, ent_embeddings, L1_flag, filter, k=0, head=0):
+def evaluation_batch(testList, tripleDict, model, ent_embeddings, n_ent, L1_flag, filter, k=0, head=0):
     # embeddings are numpy like
 
     if k > len(testList):
@@ -214,7 +219,7 @@ def evaluation_batch(testList, tripleDict, model, ent_embeddings, L1_flag, filte
         testList = random.sample(testList, k=k)
 
     L = []
-    process_data(testList, tripleDict, model, ent_embeddings, L1_flag, filter, L, head)
+    process_data(testList, tripleDict, model, ent_embeddings, n_ent, L1_flag, filter, L, head)
 
     resultList = list(L)
 

@@ -85,9 +85,14 @@ def getThreeElements(tripleList):
 # Use all the tripleList,
 # and generate negative samples by corrupting head or tail with equal probabilities,
 # without checking whether false negative samples exist.
-def getBatch_raw_all(quadrupleList, entityTotal):
+def getBatch_raw_all(quadrupleList, entityTotal, mult_num = 1):
     newQuadrupleList = [corrupt_head_raw(quadruple, entityTotal) if random.random() < 0.5
         else corrupt_tail_raw(quadruple, entityTotal) for quadruple in quadrupleList]
+    if mult_num > 1:
+        for i in range(0, mult_num-1):
+            newQuadrupleList2 = [corrupt_head_raw(quadruple, entityTotal) if random.random() < 0.5
+                                else corrupt_tail_raw(quadruple, entityTotal) for quadruple in quadrupleList]
+            newQuadrupleList.extend(newQuadrupleList2)
     ps, po, pr, pt = getFourElements(quadrupleList)
     ns, no, nr, nt = getFourElements(newQuadrupleList)
     return ps, po, pr, pt, ns, no, nr, nt
@@ -95,9 +100,15 @@ def getBatch_raw_all(quadrupleList, entityTotal):
 # Use all the tripleList,
 # and generate negative samples by corrupting head or tail with equal probabilities,
 # with checking whether false negative samples exist.
-def getBatch_filter_all(quadrupleList, entityTotal, quadrupleDict):
+def getBatch_filter_all(quadrupleList, entityTotal, quadrupleDict, mult_num = 1):
     newQuadrupleList = [corrupt_head_filter(quadruple, entityTotal, quadrupleDict) if random.random() < 0.5
         else corrupt_tail_filter(quadruple, entityTotal, quadrupleDict) for quadruple in quadrupleList]
+    if mult_num > 1:
+        for i in range(0, mult_num-1):
+            newQuadrupleList2 = [corrupt_head_filter(quadruple, entityTotal, quadrupleDict) if random.random() < 0.5
+                            else corrupt_tail_filter(quadruple, entityTotal, quadrupleDict) for quadruple in
+                            quadrupleList]
+            newQuadrupleList.extend(newQuadrupleList2)
     ps, po, pr, pt = getFourElements(quadrupleList)
     ns, no, nr, nt = getFourElements(newQuadrupleList)
     return ps, po, pr, pt, ns, no, nr, nt

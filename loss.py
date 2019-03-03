@@ -30,3 +30,5 @@ def normLoss(embeddings, dim=1):
 	norm = torch.sum(embeddings ** 2, dim=dim, keepdim=True)
 	return torch.sum(torch.max(norm - autograd.Variable(floatTensor([1.0])), autograd.Variable(floatTensor([0.0]))))
 
+def regulLoss(embeddings):
+	return torch.mean(embeddings ** 2)

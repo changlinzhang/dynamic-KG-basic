@@ -67,6 +67,9 @@ class TADistmultModel(nn.Module):
 		pred = F.sigmoid(pred)
 		return pred
 
+	def _calc(self, h, t, r):
+		return - torch.sum(h * t * r, -1)
+
 	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)
@@ -83,15 +86,15 @@ class TADistmultModel(nn.Module):
 		neg_t_e = self.dropout(neg_t_e)
 		neg_rseq_e = self.dropout(neg_rseq_e)
 
-		pos = - torch.sum(pos_h_e * pos_t_e * pos_rseq_e, dim=-1)
-		neg = - torch.sum(neg_h_e * neg_t_e * neg_rseq_e, dim=-1)
+		pos = self._calc(pos_h_e, pos_t_e, pos_rseq_e)
+		neg = self._calc(neg_h_e, neg_t_e, neg_rseq_e)
 		return pos, neg
 
 	def score(self, pos_h, pos_t, pos_r, pos_tem):
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)
 		pos_rseq_e = self.get_rseq(pos_r, pos_tem)
-		pos = - torch.sum(pos_h_e * pos_t_e * pos_rseq_e, dim=-1)
+		pos = self._calc(pos_h_e, pos_t_e, pos_rseq_e)
 		return pos
 
 	def loss(self, pos, neg):

@@ -43,7 +43,7 @@ class TATransEModel(nn.Module):
 		self.embedding_size = config.embedding_size
 		self.entity_total = config.entity_total
 		self.relation_total = config.relation_total
-		self.tem_total = 32
+		self.tem_total = config.tem_total # 32
 		self.batch_size = config.batch_size
 
 		self.dropout = nn.Dropout(config.dropout)

@@ -74,6 +74,7 @@ class Config(object):
         self.entity_total = 0
         self.relation_total = 0
         self.batch_size = 0
+        self.tem_total = 32
 
 if __name__ == "__main__":
 
@@ -93,7 +94,7 @@ if __name__ == "__main__":
     argparser.add_argument('-sc', '--score', type=str, default=0)
     argparser.add_argument('-d', '--dataset', type=str)
     argparser.add_argument('-l', '--learning_rate', type=float, default=0.001)
-    argparser.add_argument('-es', '--early_stopping_round', type=int, default=0)
+    argparser.add_argument('-es', '--early_stopping_round', type=int, default=1)
     argparser.add_argument('-L', '--L1_flag', type=int, default=1)
     argparser.add_argument('-em', '--embedding_size', type=int, default=100)
     # argparser.add_argument('-nb', '--num_batches', type=int, default=100)
@@ -115,7 +116,8 @@ if __name__ == "__main__":
         torch.manual_seed(args.seed)
 
     trainTotal, trainList, trainDict, trainTimes = load_quadruples('./data/' + args.dataset, 'train2id.txt', 'train_tem.npy')
-    quadrupleTotal, quadrupleList, tripleDict, _ = load_quadruples('./data/' + args.dataset, 'train2id.txt', 'train_tem.npy', 'test2id.txt', 'test_tem.npy')
+    validTotal, validList, validDict, validTimes = load_quadruples('./data/' + args.dataset, 'valid2id.txt', 'valid_tem.npy')
+    quadrupleTotal, quadrupleList, tripleDict, _ = load_quadruples('./data/' + args.dataset, 'train2id.txt', 'train_tem.npy', 'valid2id.txt', 'valid_tem.npy', 'test2id.txt', 'test_tem.npy')
     config = Config()
     config.dropout = args.dropout
     config.score = args.score
@@ -128,6 +130,11 @@ if __name__ == "__main__":
         config.L1_flag = True
     else:
         config.L1_flag = False
+
+    if args.dataset == "GDELT":
+        config.tem_total = 46
+    else:
+        config.tem_total = 32
 
     config.embedding_size = args.embedding_size
     # config.num_batches = args.num_batches
@@ -252,8 +259,8 @@ if __name__ == "__main__":
                     losses = loss_function(pos, neg, margin)
                 else:
                     labels = torch.squeeze(torch.cat([torch.ones((pos_h_batch.size()[0], 1)), torch.zeros((neg_h_batch.size()[0], 1))]))
-                    print(labels.size())
-                    print(torch.cat([pos, neg]).size())
+                    # print(labels.size())
+                    # print(torch.cat([pos, neg]).size())
                     losses = loss_function(torch.cat([pos, neg]), labels)
                 ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
                 rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
@@ -262,10 +269,104 @@ if __name__ == "__main__":
                 optimizer.step()
                 total_loss += losses.data
 
-            if epoch % 5 == 0:
+            if epoch % 2 == 0:
                 now_time = time.time()
                 print(now_time - start_time)
                 print("Train total loss: %d %f" % (epoch, total_loss[0]))
+
+                now_time = time.time()
+                print(now_time - start_time)
+                print("Train total loss: %d %f" % (epoch, total_loss[0]))
+
+            if epoch % 2 == 0:
+                if config.filter == True:
+                    pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_random(
+                        validList,
+                        config.batch_size, config.entity_total, tripleDict)
+                else:
+                    pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_random(
+                        validList,
+                        config.batch_size, config.entity_total)
+                pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
+                pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
+                pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
+                pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
+                neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
+                neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
+                neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
+                neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
+
+                pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch,
+                                 neg_r_batch, neg_time_batch)
+
+                if args.loss_type == 0:
+                    losses = loss_function(pos, neg, margin)
+                else:
+                    losses = loss_function(pos, neg)
+                ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
+                rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]),
+                                                 torch.cat([pos_time_batch, neg_time_batch]))
+                losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
+                print("Valid batch loss: %d %f" % (epoch, losses.item()))
+
+            if config.early_stopping_round > 0:
+                if epoch == 0:
+                    ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
+                    L1_flag = model.L1_flag
+                    filter = model.filter
+                    batchNum = 2 * len(validList)
+                    hit1ValidSum, hit3ValidSum, hit10ValidSum, meanrankValidSum, meanrerankValidSum, _ = evaluation_batch(
+                        validList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+                    hit1Valid = hit1ValidSum / batchNum
+                    hit3Valid = hit3ValidSum / batchNum
+                    hit10Valid = hit10ValidSum / batchNum
+                    meanrankValid = meanrankValidSum / batchNum
+                    meanrerankValid = meanrerankValidSum / batchNum
+                    best_meanrank = meanrankValid
+                    # hit10, best_meanrank = evaluation_transE(validList, tripleDict, ent_embeddings, rel_embeddings,
+                    #                                          L1_flag, filter, config.batch_size,
+                    #                                          num_processes=args.num_processes)
+                    #
+                    torch.save(model, os.path.join('./model/' + args.dataset, filename))
+                    best_epoch = 0
+                    meanrank_not_decrease_time = 0
+                    lr_decrease_time = 0
+                # if USE_CUDA:
+                # model.cuda()
+
+                # Evaluate on validation set for every 5 epochs
+                elif epoch % 2 == 0:
+                    ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
+                    rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
+                    L1_flag = model.L1_flag
+                    filter = model.filter
+                    batchNum = 2 * len(validList)
+                    hit1ValidSum, hit3ValidSum, hit10ValidSum, meanrankValidSum, meanrerankValidSum, _ = evaluation_batch(
+                        validList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+                    hit1Valid = hit1ValidSum / batchNum
+                    hit3Valid = hit3ValidSum / batchNum
+                    hit10Valid = hit10ValidSum / batchNum
+                    meanrankValid = meanrankValidSum / batchNum
+                    meanrerankValid = meanrerankValidSum / batchNum
+                    now_meanrank = meanrankValid
+                    # hit10, now_meanrank = evaluation_transE(validList, tripleDict, ent_embeddings, rel_embeddings,
+                    #                                         L1_flag, filter, config.batch_size,
+                    #                                         num_processes=args.num_processes)
+                    #
+                    if now_meanrank < best_meanrank:
+                        meanrank_not_decrease_time = 0
+                        best_meanrank = now_meanrank
+                        torch.save(model, os.path.join('./model/' + args.dataset, filename))
+                    else:
+                        meanrank_not_decrease_time += 1
+                        # If the result hasn't improved for consecutive 5 evaluations, decrease learning rate
+                        if meanrank_not_decrease_time == 5:
+                            lr_decrease_time += 1
+                            if lr_decrease_time == config.early_stopping_round:
+                                break
+                            else:
+                                optimizer.param_groups[0]['lr'] *= 0.5
+                                meanrank_not_decrease_time = 0
 
             if (epoch + 1) % 5 == 0 or epoch == 0:
             #    torch.save(model, os.path.join('./model/', filename))

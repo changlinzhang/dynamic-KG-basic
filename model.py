@@ -30,7 +30,7 @@ class TADistmultModel(nn.Module):
 		self.embedding_size = config.embedding_size
 		self.entity_total = config.entity_total
 		self.relation_total = config.relation_total
-		self.tem_total = 32
+		self.tem_total = config.tem_total # 32
 		self.batch_size = config.batch_size
 
 		self.criterion = nn.Softplus()
@@ -60,16 +60,6 @@ class TADistmultModel(nn.Module):
 		self.rel_embeddings.weight.data = normalize_relation_emb
 		self.tem_embeddings.weight.data = normalize_temporal_emb
 
-	def predict(self, e, r, tem):
-		e_e = self.ent_embeddings(e)
-		rseq_e = self.get_rseq(r, tem)
-		pred = torch.mm(e_e * rseq_e, self.ent_embeddings.weight.transpose(1, 0))
-		pred = F.sigmoid(pred)
-		return pred
-
-	def _calc(self, h, t, r):
-		return - torch.sum(h * t * r, -1)
-
 	def scoring(self, h, t, r):
 		return torch.sum(h * t * r, 1, False)
 
@@ -92,21 +82,6 @@ class TADistmultModel(nn.Module):
 		pos = self.scoring(pos_h_e, pos_t_e, pos_rseq_e)
 		neg = self.scoring(neg_h_e, neg_t_e, neg_rseq_e)
 		return pos, neg
-
-	def score(self, pos_h, pos_t, pos_r, pos_tem):
-		pos_h_e = self.ent_embeddings(pos_h)
-		pos_t_e = self.ent_embeddings(pos_t)
-		pos_rseq_e = self.get_rseq(pos_r, pos_tem)
-		pos = self.scoring(pos_h_e, pos_t_e, pos_rseq_e)
-		return pos
-
-	def loss(self, pos, neg):
-		pos_y = torch.ones(pos.shape[0], 1)
-		neg_y = -torch.ones(neg.shape[0], 1)
-		score = torch.cat((pos, neg), 0)
-		batch_y = torch.cat((pos_y, neg_y), 0)
-		batch_y = autograd.Variable(batch_y.cuda())
-		return torch.mean(self.criterion(score * batch_y))
 
 	def get_rseq(self, pos_r, pos_tem):
 		pos_r_e = self.rel_embeddings(pos_r)

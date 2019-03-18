@@ -114,7 +114,7 @@ def evaluation_helper(testList, tripleDict, model, ent_embeddings, L1_flag, filt
     c_h_e = t_e * rseq_e
     dist = linear_kernel(c_t_e, ent_embeddings)
 
-    rankArrayTail = np.argsort(dist, axis=1)
+    rankArrayTail = np.argsort(-dist, axis=1)
     if filter == False:
         rankListTail = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(tailList, rankArrayTail)]
     else:
@@ -127,7 +127,7 @@ def evaluation_helper(testList, tripleDict, model, ent_embeddings, L1_flag, filt
 
     dist = linear_kernel(c_h_e, ent_embeddings)
 
-    rankArrayHead = np.argsort(dist, axis=1)
+    rankArrayHead = np.argsort(-dist, axis=1)
     if filter == False:
         rankListHead = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(headList, rankArrayHead)]
     else:

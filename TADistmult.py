@@ -74,7 +74,6 @@ class Config(object):
         self.entity_total = 0
         self.relation_total = 0
         self.batch_size = 0
-        self.negsample = 2
 
 
 if __name__ == "__main__":
@@ -110,7 +109,6 @@ if __name__ == "__main__":
     argparser.add_argument('-p', '--port', type=int, default=5000)
     argparser.add_argument('-np', '--num_processes', type=int, default=4)
     argparser.add_argument('-lm', '--lmbda', type=float, default=0.01)
-    argparser.add_argument('-neg', '--negsample', type=int, default=20)
     argparser.add_argument('-test', '--test', type=int, default=0)
 
     args = argparser.parse_args()
@@ -158,7 +156,6 @@ if __name__ == "__main__":
     config.entity_total, config.relation_total = get_total_number('./data/' + args.dataset, 'stat.txt')
     # config.batch_size = trainTotal // config.num_batches
     config.batch_size = args.batch_size
-    config.negsample = args.negsample
 
     shareHyperparameters = {'dropout': args.dropout,
         'score': args.score,
@@ -204,14 +201,13 @@ if __name__ == "__main__":
              's', str(args.seed),
              'op', str(args.optimizer),
              'lo', str(args.loss_type),
-             'lmbda', str(args.lmbda),
-             'negsample', str(args.negsample)]) + '_TADistmult.ckpt'
+             'lmbda', str(args.lmbda)]) + '_Distmult.ckpt'
     path_name = os.path.join('./model/' + args.dataset, filename)
     # path_name = os.path.join('./model/', filename)
     if os.path.exists(path_name):
         model = torch.load(path_name)
     else:
-        model = model.TADistmultModel(config)
+        model = model.DistmultModel(config)
 
     if USE_CUDA:
         model.cuda()
@@ -233,10 +229,10 @@ if __name__ == "__main__":
             for batchList in trainBatchList:
                 if config.filter == True:
                     pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_all(batchList,
-                        config.entity_total, tripleDict, config.negsample)
+                        config.entity_total, tripleDict)
                 else:
                     pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_all(batchList,
-                        config.entity_total, config.negsample)
+                        config.entity_total)
 
                 batch_entity_set = set(pos_h_batch + pos_t_batch + neg_h_batch + neg_t_batch)
                 batch_relation_set = set(pos_r_batch + neg_r_batch)
@@ -259,8 +255,8 @@ if __name__ == "__main__":
                     losses = loss_function(pos, neg)
                     # losses = model.loss(pos, neg)
                 ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-                rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
-                losses = losses + args.lmbda * (loss.regulLoss(ent_embeddings) + loss.regulLoss(rseq_embeddings))
+                rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
+                losses = losses + args.lmbda * (loss.regulLoss(ent_embeddings) + loss.regulLoss(rel_embeddings))
                 # losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
 
                 losses.backward()
@@ -278,14 +274,14 @@ if __name__ == "__main__":
 
     model.eval()
     testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset, 'test2id.txt', 'test_tem.npy')
-    # testBatchList = getBatchList(testList, config.num_batches)
     testBatchList = getBatchList(testList, config.batch_size)
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
+    rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
     L1_flag = model.L1_flag
     filter = model.filter
 
-    # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+    # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, rel_embeddings, L1_flag, filter, head=0)
     hit1TestSum = 0
     hit3TestSum = 0
     hit10TestSum = 0
@@ -293,7 +289,7 @@ if __name__ == "__main__":
     meanrerankTestSum = 0
     batchNum = 2*len(testList)
     for batchList in testBatchList:
-        hit1TestSubSum, hit3TestSubSum, hit10TestSubSum, meanrankTestSubSum, meanrerankTestSubSum, batchSubNum = evaluation_batch(batchList, tripleDict, model, ent_embeddings, config.entity_total, L1_flag, filter, head=0)
+        hit1TestSubSum, hit3TestSubSum, hit10TestSubSum, meanrankTestSubSum, meanrerankTestSubSum, batchSubNum = evaluation_batch(batchList, tripleDict, model, ent_embeddings, rel_embeddings, L1_flag, filter, head=0)
         hit1TestSum += hit1TestSubSum
         hit3TestSum += hit3TestSubSum
         hit10TestSum += hit10TestSubSum

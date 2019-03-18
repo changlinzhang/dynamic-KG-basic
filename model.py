@@ -20,6 +20,63 @@ else:
 	floatTensor = torch.FloatTensor
 
 
+class DistmultModel(nn.Module):
+	def __init__(self, config):
+		super(DistmultModel, self).__init__()
+		self.learning_rate = config.learning_rate
+		self.early_stopping_round = config.early_stopping_round
+		self.L1_flag = config.L1_flag
+		self.filter = config.filter
+		self.embedding_size = config.embedding_size
+		self.entity_total = config.entity_total
+		self.relation_total = config.relation_total
+		self.tem_total = 32
+		self.batch_size = config.batch_size
+
+		self.criterion = nn.Softplus()
+		torch.nn.BCELoss()
+
+		self.dropout = nn.Dropout(config.dropout)
+		self.lstm = LSTMModel(self.embedding_size, n_layer=1)
+
+		ent_weight = floatTensor(self.entity_total, self.embedding_size)
+		rel_weight = floatTensor(self.relation_total, self.embedding_size)
+		tem_weight = floatTensor(self.tem_total, self.embedding_size)
+		# Use xavier initialization method to initialize embeddings of entities and relations
+		nn.init.xavier_uniform(ent_weight)
+		nn.init.xavier_uniform(rel_weight)
+		nn.init.xavier_uniform(tem_weight)
+		self.ent_embeddings = nn.Embedding(self.entity_total, self.embedding_size)
+		self.rel_embeddings = nn.Embedding(self.relation_total, self.embedding_size)
+		self.tem_embeddings = nn.Embedding(self.tem_total, self.embedding_size)
+		self.ent_embeddings.weight = nn.Parameter(ent_weight)
+		self.rel_embeddings.weight = nn.Parameter(rel_weight)
+		self.tem_embeddings.weight = nn.Parameter(tem_weight)
+
+		normalize_entity_emb = F.normalize(self.ent_embeddings.weight.data, p=2, dim=1)
+		normalize_relation_emb = F.normalize(self.rel_embeddings.weight.data, p=2, dim=1)
+		normalize_temporal_emb = F.normalize(self.tem_embeddings.weight.data, p=2, dim=1)
+		self.ent_embeddings.weight.data = normalize_entity_emb
+		self.rel_embeddings.weight.data = normalize_relation_emb
+		self.tem_embeddings.weight.data = normalize_temporal_emb
+
+	def scoring(self, h, t, r):
+		return torch.sum(h * t * r, 1, False)
+
+	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
+		pos_h_e = self.ent_embeddings(pos_h)
+		pos_t_e = self.ent_embeddings(pos_t)
+		pos_r_e = self.rel_embeddings(pos_r)
+		neg_h_e = self.ent_embeddings(neg_h)
+		neg_t_e = self.ent_embeddings(neg_t)
+		neg_r_e = self.rel_embeddings(neg_r)
+
+		pos = self.scoring(pos_h_e, pos_t_e, pos_r_e)
+		neg = self.scoring(neg_h_e, neg_t_e, neg_r_e)
+
+		return pos, neg
+
+
 class TADistmultModel(nn.Module):
 	def __init__(self, config):
 		super(TADistmultModel, self).__init__()

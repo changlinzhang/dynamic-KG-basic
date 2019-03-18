@@ -32,3 +32,15 @@ def normLoss(embeddings, dim=1):
 
 def regulLoss(embeddings):
 	return torch.mean(embeddings ** 2)
+
+class binaryCrossLoss(nn.Module):
+	def __init__(self):
+		super(binaryCrossLoss, self).__init__()
+
+	def forward(self, pos, neg):
+		pos_labels = floatTensor(pos.shape[0])
+		nn.init.ones_(pos_labels)
+		neg_labels = floatTensor(neg.shape[0])
+		nn.init.zeros_(neg_labels)
+		labels = torch.cat((pos_labels, neg_labels))
+		return F.binary_cross_entropy_with_logits(torch.cat((pos, neg)), labels)

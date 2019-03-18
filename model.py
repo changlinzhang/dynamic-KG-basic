@@ -70,6 +70,9 @@ class TADistmultModel(nn.Module):
 	def _calc(self, h, t, r):
 		return - torch.sum(h * t * r, -1)
 
+	def scoring(self, h, t, r):
+		return torch.sum(h * t * r, 1, False)
+
 	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)
@@ -86,15 +89,15 @@ class TADistmultModel(nn.Module):
 		neg_t_e = self.dropout(neg_t_e)
 		neg_rseq_e = self.dropout(neg_rseq_e)
 
-		pos = self._calc(pos_h_e, pos_t_e, pos_rseq_e)
-		neg = self._calc(neg_h_e, neg_t_e, neg_rseq_e)
+		pos = self.scoring(pos_h_e, pos_t_e, pos_rseq_e)
+		neg = self.scoring(neg_h_e, neg_t_e, neg_rseq_e)
 		return pos, neg
 
 	def score(self, pos_h, pos_t, pos_r, pos_tem):
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)
 		pos_rseq_e = self.get_rseq(pos_r, pos_tem)
-		pos = self._calc(pos_h_e, pos_t_e, pos_rseq_e)
+		pos = self.scoring(pos_h_e, pos_t_e, pos_rseq_e)
 		return pos
 
 	def loss(self, pos, neg):
@@ -105,16 +108,7 @@ class TADistmultModel(nn.Module):
 		batch_y = autograd.Variable(batch_y.cuda())
 		return torch.mean(self.criterion(score * batch_y))
 
-	def unroll(self, data, unroll_len=4):
-		result = None
-		for i in range(len(data) - unroll_len):
-			if i == 0:
-				result = data[i: i+unroll_len].unsqueeze(0)
-			else:
-				result = torch.cat((result, data[i: i+unroll_len].unsqueeze(0)), 0)
-		return result
-
-	def get_rseq(self, pos_r, pos_tem, unroll_len=4):
+	def get_rseq(self, pos_r, pos_tem):
 		pos_r_e = self.rel_embeddings(pos_r)
 		pos_r_e = pos_r_e.unsqueeze(0).transpose(0, 1)
 

@@ -21,7 +21,7 @@ import random
 
 from utils import *
 from data import *
-from evaluation_distmult import *
+from evaluation_distmult_wj import *
 import loss
 import model
 
@@ -69,12 +69,13 @@ class Config(object):
         self.filter = True
         self.momentum = 0.9
         self.optimizer = optim.Adam
-        self.loss_function = loss.marginLoss
+        self.loss_function = loss.binaryCrossLoss
         self.loss_type = 0
         self.entity_total = 0
         self.relation_total = 0
         self.batch_size = 0
         self.negsample = 2
+
 
 if __name__ == "__main__":
 
@@ -109,7 +110,7 @@ if __name__ == "__main__":
     argparser.add_argument('-p', '--port', type=int, default=5000)
     argparser.add_argument('-np', '--num_processes', type=int, default=4)
     argparser.add_argument('-lm', '--lmbda', type=float, default=0.01)
-    argparser.add_argument('-neg', '--negsample', type=int, default=2)
+    argparser.add_argument('-neg', '--negsample', type=int, default=20)
     argparser.add_argument('-test', '--test', type=int, default=0)
 
     args = argparser.parse_args()
@@ -152,7 +153,7 @@ if __name__ == "__main__":
         config.optimizer = optim.RMSprop
 
     if args.loss_type == 0:
-        config.loss_function = loss.marginLoss
+        config.loss_function = loss.binaryCrossLoss
 
     config.entity_total, config.relation_total = get_total_number('./data/' + args.dataset, 'stat.txt')
     # config.batch_size = trainTotal // config.num_batches
@@ -255,8 +256,8 @@ if __name__ == "__main__":
                 pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
 
                 if args.loss_type == 0:
-                    # losses = loss_function(pos, neg)
-                    losses = model.loss(pos, neg)
+                    losses = loss_function(pos, neg)
+                    # losses = model.loss(pos, neg)
                 ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
                 rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
                 losses = losses + args.lmbda * (loss.regulLoss(ent_embeddings) + loss.regulLoss(rseq_embeddings))

@@ -15,8 +15,10 @@ relation_dict = {}
 count = 0
 
 def preprocess(data_part):
-    data_path = "data/icews_ke_date/"+data_part+".txt"
-    tem_write_path = "data/icews_ke_date/"+data_part+"_tem.npy"
+    # data_path = "data/icews_ke_date/"+data_part+".txt"
+    # tem_write_path = "data/icews_ke_date/"+data_part+"_tem.npy"
+    data_path = "data/ICEWS18/" + data_part + "2id.txt"
+    tem_write_path = "data/ICEWS18/" + data_part + "_tem.npy"
     tem = []
     with open(data_path) as fp:
         for i,line in enumerate(fp):

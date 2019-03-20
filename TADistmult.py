@@ -275,7 +275,7 @@ if __name__ == "__main__":
                 print(now_time - start_time)
                 print("Train total loss: %d %f" % (epoch, total_loss[0]))
 
-            if total_loss > 1000: # problem: loss explosion, dont save model
+            if total_loss[0] > 3000: # problem: loss explosion, dont save model
                 break
 
             if epoch % 5 == 0:
@@ -315,8 +315,21 @@ if __name__ == "__main__":
                     L1_flag = model.L1_flag
                     filter = model.filter
                     batchNum = 2 * len(validList)
-                    hit1ValidSum, hit3ValidSum, hit10ValidSum, meanrankValidSum, meanrerankValidSum, _ = evaluation_batch(
-                        validList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+                    validBatchList = getBatchList(validList, config.batch_size)
+                    hit1ValidSum = 0
+                    hit3ValidSum = 0
+                    hit10ValidSum = 0
+                    meanrankValidSum = 0
+                    meanrerankValidSum = 0
+                    batchNum = 2 * len(validList)
+                    for batchList in validBatchList:
+                        hit1ValidSubSum, hit3ValidSubSum, hit10ValidSubSum, meanrankValidSubSum, meanrerankValidSubSum, _ = evaluation_batch(
+                            batchList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+                        hit1ValidSum += hit1ValidSubSum
+                        hit3ValidSum += hit3ValidSubSum
+                        hit10ValidSum += hit10ValidSubSum
+                        meanrankValidSum += meanrankValidSubSum
+                        meanrerankValidSum += meanrerankValidSubSum
                     hit1Valid = hit1ValidSum / batchNum
                     hit3Valid = hit3ValidSum / batchNum
                     hit10Valid = hit10ValidSum / batchNum
@@ -336,8 +349,21 @@ if __name__ == "__main__":
                     L1_flag = model.L1_flag
                     filter = model.filter
                     batchNum = 2 * len(validList)
-                    hit1ValidSum, hit3ValidSum, hit10ValidSum, meanrankValidSum, meanrerankValidSum, _ = evaluation_batch(
-                        validList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+                    validBatchList = getBatchList(validList, config.batch_size)
+                    hit1ValidSum = 0
+                    hit3ValidSum = 0
+                    hit10ValidSum = 0
+                    meanrankValidSum = 0
+                    meanrerankValidSum = 0
+                    batchNum = 2 * len(validList)
+                    for batchList in validBatchList:
+                        hit1ValidSubSum, hit3ValidSubSum, hit10ValidSubSum, meanrankValidSubSum, meanrerankValidSubSum, _ = evaluation_batch(
+                            batchList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+                        hit1ValidSum += hit1ValidSubSum
+                        hit3ValidSum += hit3ValidSubSum
+                        hit10ValidSum += hit10ValidSubSum
+                        meanrankValidSum += meanrankValidSubSum
+                        meanrerankValidSum += meanrerankValidSubSum
                     hit1Valid = hit1ValidSum / batchNum
                     hit3Valid = hit3ValidSum / batchNum
                     hit10Valid = hit10ValidSum / batchNum

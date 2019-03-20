@@ -4,8 +4,10 @@ import os
 entity_dict = {}
 relation_dict = {}
 
-path = "data/icews_ke/"
-newpath = "data/icews_ke_date/"
+# path = "data/icews_ke/"
+# newpath = "data/icews_ke_date/"
+path = "data/ICEWS18_original/"
+newpath = "data/ICEWS18/"
 filelist = os.listdir(path)
 for filename in filelist:
     if filename.startswith("stat"):
@@ -14,7 +16,8 @@ for filename in filelist:
     fp = open(os.path.join(path, filename))
     fw = open(os.path.join(newpath, filename), "w")
 
-    start_time_str = "2014-01-01"
+    # start_time_str = "2014-01-01"
+    start_time_str = "2018-01-01"
     format = "%Y-%m-%d"
     start_time = datetime.datetime.strptime(start_time_str, format)
 

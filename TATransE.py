@@ -269,7 +269,7 @@ if __name__ == "__main__":
                 optimizer.step()
                 total_loss += losses.data
 
-            if epoch % 2 == 0:
+            if epoch % 10 == 0:
                 now_time = time.time()
                 print(now_time - start_time)
                 print("Train total loss: %d %f" % (epoch, total_loss[0]))
@@ -278,7 +278,7 @@ if __name__ == "__main__":
                 print(now_time - start_time)
                 print("Train total loss: %d %f" % (epoch, total_loss[0]))
 
-            if epoch % 2 == 0:
+            if epoch % 10 == 0:
                 if config.filter == True:
                     pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_random(
                         validList,
@@ -335,7 +335,7 @@ if __name__ == "__main__":
                 # model.cuda()
 
                 # Evaluate on validation set for every 5 epochs
-                elif epoch % 2 == 0:
+                elif epoch % 5 == 0:
                     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
                     rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
                     L1_flag = model.L1_flag
@@ -368,7 +368,7 @@ if __name__ == "__main__":
                                 optimizer.param_groups[0]['lr'] *= 0.5
                                 meanrank_not_decrease_time = 0
 
-            if (epoch + 1) % 5 == 0 or epoch == 0:
+            if (epoch + 1) % 10 == 0 or epoch == 0:
             #    torch.save(model, os.path.join('./model/', filename))
                 torch.save(model, os.path.join('./model/' + args.dataset, filename))
 

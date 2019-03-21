@@ -94,7 +94,7 @@ if __name__ == "__main__":
     argparser.add_argument('-sc', '--score', type=str, default=0)
     argparser.add_argument('-d', '--dataset', type=str)
     argparser.add_argument('-l', '--learning_rate', type=float, default=0.001)
-    argparser.add_argument('-es', '--early_stopping_round', type=int, default=1)
+    argparser.add_argument('-es', '--early_stopping_round', type=int, default=10)
     argparser.add_argument('-L', '--L1_flag', type=int, default=1)
     argparser.add_argument('-em', '--embedding_size', type=int, default=100)
     # argparser.add_argument('-nb', '--num_batches', type=int, default=100)

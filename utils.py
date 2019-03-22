@@ -129,3 +129,13 @@ def load_quadruples_TTransE(inPath, fileName, fileName2 = None, fileName3 = None
 def get_quadruple_t(quads, time):
 	return [quad for quad in quads if quad.t == time]
 
+
+def getTimedict(inPath, fileName):
+	timedict = {}
+
+	with open(os.path.join(inPath, fileName), 'r') as fr:
+		for line in fr:
+			line_split = line.split()
+			timedict[int(line_split[0])] = line_split[1]
+
+	return timedict

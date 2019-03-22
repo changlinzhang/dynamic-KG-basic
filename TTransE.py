@@ -350,9 +350,7 @@ if __name__ == "__main__":
 
 
     if 'GDELT' in config.dataset:
-        start_time_str = "2018-01-01 00:00"
-        format = "%Y-%m-%d %H:%M"
-        start_time = datetime.datetime.strptime(start_time_str, format)
+        timedict = getTimedict('./data/' + args.dataset, 'timedict.txt')
 
     if 'ICEWS18' in config.dataset:
         start_time_str = "2018-01-01"
@@ -367,9 +365,9 @@ if __name__ == "__main__":
         time = timestampBatchList[0].t
         if 'ICEWS18' in config.dataset:
             time = start_time + datetime.timedelta(days=time)
+            time_str = time.strftime(format)
         if 'GDELT' in config.dataset:
-            time = start_time + datetime.timedelta(minutes=15*time)
-        time_str = time.strftime(format)
+            time_str = timedict[time]
         writeList = [time_str, '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]
         fw.write('\t'.join(writeList) + '\n')
     fw.write('\n')

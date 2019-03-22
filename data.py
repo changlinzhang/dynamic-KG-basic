@@ -62,12 +62,12 @@ def corrupt_tail_filter(quadruple, entityTotal, quadrupleDict):
 #     batchList[num_batches - 1] = tripleList[(num_batches - 1) * batchSize : ]
 #     return batchList
 def getBatchList(tripleList, batch_size):
-	num_batches = len(tripleList) // batch_size + 1
-	batchList = [0] * num_batches
-	for i in range(num_batches - 1):
-		batchList[i] = tripleList[i * batch_size : (i + 1) * batch_size]
-	batchList[num_batches - 1] = tripleList[(num_batches - 1) * batch_size : ]
-	return batchList
+    num_batches = len(tripleList) // batch_size + 1
+    batchList = [0] * num_batches
+    for i in range(num_batches - 1):
+        batchList[i] = tripleList[i * batch_size : (i + 1) * batch_size]
+    batchList[num_batches - 1] = tripleList[(num_batches - 1) * batch_size : ]
+    return batchList
 
 def getFourElements(quadrupleList):
     headList = [quadruple.s for quadruple in quadrupleList]
@@ -123,3 +123,17 @@ def getBatch_filter_random(quadrupleList, batchSize, entityTotal, quadrupleDict)
     ph, po, pr, pt = getFourElements(oldQuadrupleList)
     nh, no, nr, nt = getFourElements(newQuadrupleList)
     return ph, po, pr, pt, nh, no, nr, nt
+
+def getTimestampBatchList(quadrupleList):
+    batchList = []
+    tmpList = []
+    preTimestamp = -1
+    for i in range(len(quadrupleList)):
+        if quadrupleList[i].t != preTimestamp:
+            if preTimestamp != -1:
+                batchList.append(deepcopy(tmpList))
+            preTimestamp = quadrupleList[i].t
+            tmpList = []
+        tmpList.append(quadrupleList[i])
+    batchList.append(deepcopy(tmpList))
+    return batchList

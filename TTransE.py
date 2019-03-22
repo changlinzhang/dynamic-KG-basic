@@ -337,6 +337,9 @@ if __name__ == "__main__":
     model.eval()
     testTotal, testList, testDict = load_quadruples_TTransE('./data/' + args.dataset, 'test2id.txt')
     # testBatchList = getBatchList(testList, config.num_batches)
+
+    testTimestampBatchList = getTimestampBatchList(testList)
+
     testBatchList = getBatchList(testList, config.batch_size)
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
@@ -345,30 +348,31 @@ if __name__ == "__main__":
     L1_flag = model.L1_flag
     filter = model.filter
 
-    # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, quadrupleDict, model, ent_embeddings, rel_embeddings, tem_embeddings, L1_flag, filter, head=0)
-    hit1TestSum = 0
-    hit3TestSum = 0
-    hit10TestSum = 0
-    meanrankTestSum = 0
-    meanrerankTestSum = 0
-    batchNum = 2*len(testList)
-    for batchList in testBatchList:
-        hit1TestSubSum, hit3TestSubSum, hit10TestSubSum, meanrankTestSubSum, meanrerankTestSubSum, batchSubNum = evaluation_batch(batchList, quadrupleDict, model, ent_embeddings, rel_embeddings, tem_embeddings, L1_flag, filter, head=0)
-        hit1TestSum += hit1TestSubSum
-        hit3TestSum += hit3TestSubSum
-        hit10TestSum += hit10TestSubSum
-        meanrankTestSum += meanrankTestSubSum
-        meanrerankTestSum += meanrerankTestSubSum
-        # batchNum += batchSubNum
-    hit1Test = hit1TestSum / batchNum
-    hit3Test = hit3TestSum / batchNum
-    hit10Test = hit10TestSum / batchNum
-    meanrankTest = meanrankTestSum / batchNum
-    meanrerankTest = meanrerankTestSum / batchNum
 
-    writeList = [filename,
-        'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]
+    if 'GDELT' in config.dataset:
+        start_time_str = "2018-01-01 00:00"
+        format = "%Y-%m-%d %H:%M"
+        start_time = datetime.datetime.strptime(start_time_str, format)
 
-    # Write the result into file
-    with open(os.path.join('./result/', args.dataset + '.txt'), 'a') as fw:
+    if 'ICEWS18' in config.dataset:
+        start_time_str = "2018-01-01"
+        format = "%Y-%m-%d"
+        start_time = datetime.datetime.strptime(start_time_str, format)
+
+    fw = open(os.path.join('./result/', args.dataset + '_timestamp.txt'), 'a')
+    writeList = [filename, 'testSet']
+    fw.write('\t'.join(writeList) + '\n')
+    for timestampBatchList in testTimestampBatchList:
+        hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(timestampBatchList, quadrupleDict, model, ent_embeddings, rel_embeddings, tem_embeddings, L1_flag, filter, head=0)
+        time = timestampBatchList[0].t
+        if 'ICEWS18' in config.dataset:
+            time = start_time + datetime.timedelta(days=time)
+        if 'GDELT' in config.dataset:
+            time = start_time + datetime.timedelta(minutes=15*time)
+        time_str = time.strftime(format)
+        writeList = [time_str, '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]
         fw.write('\t'.join(writeList) + '\n')
+    fw.write('\n')
+    fw.write('\n')
+    fw.close()
+

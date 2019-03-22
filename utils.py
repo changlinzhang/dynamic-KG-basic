@@ -20,7 +20,7 @@ def get_total_number(inPath, fileName):
 	with open(os.path.join(inPath, fileName), 'r') as fr:
 		for line in fr:
 			line_split = line.split()
-			return int(line_split[0]), int(line_split[1])
+			return int(line_split[0]), int(line_split[1]), int(line_split[2])
 
 
 def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName2 = None, fileName3 = None, temFileName3 = None):
@@ -80,6 +80,51 @@ def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName
 		tripleDict[(quadruple.s, quadruple.o, quadruple.r)] = True
 
 	return quadrupleTotal, quadrupleList, tripleDict, times
+
+
+def load_quadruples_TTransE(inPath, fileName, fileName2 = None, fileName3 = None):
+	quadrupleList = []
+	quadrupleTotal = 0
+
+	with open(os.path.join(inPath, fileName), 'r') as fr:
+		for line in fr:
+			quadrupleTotal += 1
+			line_split = line.split()
+			head = int(line_split[0])
+			tail = int(line_split[2])
+			rel = int(line_split[1])
+			time = int(line_split[3])
+			quadrupleList.append(Quadruple(head, tail, rel, time))
+
+	if fileName2 is not None:
+		assert quadrupleTotal != 0
+		with open(os.path.join(inPath, fileName2), 'r') as fr:
+			for line in fr:
+				quadrupleTotal += 1
+				line_split = line.split()
+				head = int(line_split[0])
+				tail = int(line_split[2])
+				rel = int(line_split[1])
+				time = int(line_split[3])
+				quadrupleList.append(Quadruple(head, tail, rel, time))
+
+	if fileName3 is not None:
+		assert quadrupleTotal != 0
+		with open(os.path.join(inPath, fileName3), 'r') as fr:
+			for line in fr:
+				quadrupleTotal += 1
+				line_split = line.split()
+				head = int(line_split[0])
+				tail = int(line_split[2])
+				rel = int(line_split[1])
+				time = int(line_split[3])
+				quadrupleList.append(Quadruple(head, tail, rel, time))
+
+	quadrupleDict = {}
+	for quadruple in quadrupleList:
+		quadrupleDict[(quadruple.s, quadruple.o, quadruple.r,  quadruple.t)] = True
+
+	return quadrupleTotal, quadrupleList, quadrupleDict
 
 def get_quadruple_t(quads, time):
 	return [quad for quad in quads if quad.t == time]

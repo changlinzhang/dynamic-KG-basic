@@ -36,7 +36,7 @@ def corrupt_head_filter(quadruple, entityTotal, quadrupleDict):
     newQuadruple = deepcopy(quadruple)
     while True:
         newHead = random.randrange(entityTotal)
-        if (newHead, newQuadruple.o, newQuadruple.r) not in quadrupleDict:
+        if (newHead, newQuadruple.o, newQuadruple.r, newQuadruple.t) not in quadrupleDict:
             break
     newQuadruple.s = newHead
     return newQuadruple
@@ -48,7 +48,7 @@ def corrupt_tail_filter(quadruple, entityTotal, quadrupleDict):
     newQuadruple = deepcopy(quadruple)
     while True:
         newTail = random.randrange(entityTotal)
-        if (newQuadruple.s, newTail, newQuadruple.r) not in quadrupleDict:
+        if (newQuadruple.s, newTail, newQuadruple.r, newQuadruple.t) not in quadrupleDict:
             break
     newQuadruple.o = newTail
     return newQuadruple

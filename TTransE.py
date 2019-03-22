@@ -8,7 +8,7 @@
 import os
 
 import torch
-torch.multiprocessing.set_start_method("spawn")
+# torch.multiprocessing.set_start_method("spawn")
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
@@ -130,11 +130,6 @@ if __name__ == "__main__":
         config.L1_flag = True
     else:
         config.L1_flag = False
-
-    if args.dataset == "GDELT":
-        config.tem_total = 46
-    else:
-        config.tem_total = 32
 
     config.embedding_size = args.embedding_size
     # config.num_batches = args.num_batches
@@ -340,7 +335,7 @@ if __name__ == "__main__":
                 torch.save(model, os.path.join('./model/' + args.dataset, filename))
 
     model.eval()
-    testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset, 'test2id.txt', 'test_tem.npy')
+    testTotal, testList, testDict = load_quadruples_TTransE('./data/' + args.dataset, 'test2id.txt')
     # testBatchList = getBatchList(testList, config.num_batches)
     testBatchList = getBatchList(testList, config.batch_size)
 

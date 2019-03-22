@@ -2,8 +2,10 @@ import numpy as np
 
 time_dict = {}
 
-path = "data/ICEWS18_original/"
-newpath = "data/ICEWS18_TTransE/"
+# path = "data/ICEWS18_original/"
+# newpath = "data/ICEWS18_TTransE/"
+path = "data/GDELT_original/"
+newpath = "data/GDELT_TTransE/"
 
 fr_stat = open(path + "stat.txt", "r")
 fw_stat = open(newpath + "stat.txt", "w")

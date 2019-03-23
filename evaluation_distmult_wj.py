@@ -184,11 +184,6 @@ def evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, k=0
         hit10 = sum([elem[2] for elem in resultList]) / (2 * len(testList))
         meanrank = sum([elem[3] for elem in resultList]) / (2 * len(testList))
         meanrerank = sum([elem[4] for elem in resultList]) / (2 * len(testList))
-        # hit1 = sum([elem[0] for elem in resultList])
-        # hit3 = sum([elem[1] for elem in resultList])
-        # hit10 = sum([elem[2] for elem in resultList])
-        # meanrank = sum([elem[3] for elem in resultList])
-        # meanrerank = sum([elem[4] for elem in resultList])
 
     print('Meanrank: %.6f' % meanrank)
     print('Meanrerank: %.6f' % meanrerank)

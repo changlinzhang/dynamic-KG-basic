@@ -84,3 +84,12 @@ def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName
 def get_quadruple_t(quads, time):
 	return [quad for quad in quads if quad.t == time]
 
+def getTimedict(inPath, fileName):
+	timedict = {}
+
+	with open(os.path.join(inPath, fileName), 'r') as fr:
+		for line in fr:
+			line_split = line.split()
+			timedict[line_split[0]] = line_split[1]
+
+	return timedict

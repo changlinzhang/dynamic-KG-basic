@@ -35,8 +35,8 @@ def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName
 			head = int(line_split[0])
 			tail = int(line_split[2])
 			rel = int(line_split[1])
-			time = tem[quadrupleTotal-1][4:]
-			# time = tem[quadrupleTotal-1]
+			# time = tem[quadrupleTotal-1][4:]
+			time = tem[quadrupleTotal-1]
 			# times.add(time)
 			quadrupleList.append(Quadruple(head, tail, rel, time))
 
@@ -52,8 +52,8 @@ def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName
 				head = int(line_split[0])
 				tail = int(line_split[2])
 				rel = int(line_split[1])
-				time = tem2[quadrupleTotal-trainTotal-1][4:]
-				# time = tem2[quadrupleTotal-trainTotal-1]
+				# time = tem2[quadrupleTotal-trainTotal-1][4:]
+				time = tem2[quadrupleTotal-trainTotal-1]
 				# times.add(time)
 				quadrupleList.append(Quadruple(head, tail, rel, time))
 
@@ -84,3 +84,13 @@ def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName
 def get_quadruple_t(quads, time):
 	return [quad for quad in quads if quad.t == time]
 
+
+def getTimedict(inPath, fileName):
+	timedict = {}
+
+	with open(os.path.join(inPath, fileName), 'r') as fr:
+		for line in fr:
+			line_split = line.split()
+			timedict[line_split[0]] = line_split[1]
+
+	return timedict

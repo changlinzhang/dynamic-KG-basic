@@ -2,6 +2,7 @@ import os
 import random
 from copy import deepcopy
 import numpy as np
+import operator
 
 from utils import Triple
 
@@ -123,3 +124,17 @@ def getBatch_filter_random(quadrupleList, batchSize, entityTotal, quadrupleDict)
     ph, po, pr, pt = getFourElements(oldQuadrupleList)
     nh, no, nr, nt = getFourElements(newQuadrupleList)
     return ph, po, pr, pt, nh, no, nr, nt
+
+def getTimestampBatchList(quadrupleList):
+    batchList = []
+    tmpList = []
+    preTimestamp = []
+    for i in range(len(quadrupleList)):
+        if not operator.eq(quadrupleList[i].t, preTimestamp):
+            if len(preTimestamp) != 0:
+                batchList.append(deepcopy(tmpList))
+            preTimestamp = quadrupleList[i].t
+            tmpList = []
+        tmpList.append(quadrupleList[i])
+    batchList.append(deepcopy(tmpList))
+    return batchList

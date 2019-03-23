@@ -35,8 +35,8 @@ def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName
 			head = int(line_split[0])
 			tail = int(line_split[2])
 			rel = int(line_split[1])
-			# time = tem[quadrupleTotal-1][4:]
-			time = tem[quadrupleTotal-1]
+			time = tem[quadrupleTotal-1][4:]
+			# time = tem[quadrupleTotal-1]
 			# times.add(time)
 			quadrupleList.append(Quadruple(head, tail, rel, time))
 
@@ -52,8 +52,8 @@ def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName
 				head = int(line_split[0])
 				tail = int(line_split[2])
 				rel = int(line_split[1])
-				# time = tem2[quadrupleTotal-trainTotal-1][4:]
-				time = tem2[quadrupleTotal-trainTotal-1]
+				time = tem2[quadrupleTotal-trainTotal-1][4:]
+				# time = tem2[quadrupleTotal-trainTotal-1]
 				# times.add(time)
 				quadrupleList.append(Quadruple(head, tail, rel, time))
 
@@ -69,7 +69,8 @@ def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName
 				head = int(line_split[0])
 				tail = int(line_split[2])
 				rel = int(line_split[1])
-				time = tem3[quadrupleTotal-trainTestTotal-1]
+				time = tem3[quadrupleTotal - trainTestTotal - 1][4:]
+				# time = tem3[quadrupleTotal-trainTestTotal-1]
 				# times.add(time)
 				quadrupleList.append(Quadruple(head, tail, rel, time))
 

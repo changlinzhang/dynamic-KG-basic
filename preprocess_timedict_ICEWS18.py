@@ -12,7 +12,8 @@ tem_dict = {
 
 path = "data/ICEWS18/"
 
-fw = open(path + "timedict.txt", "w")
+# fw = open(path + "timedict.txt", "w")
+fw = open(path + "timedict_wo_year.txt", "w")
 
 count = 0
 time_index = 3
@@ -46,7 +47,8 @@ def preprocess(data_part):
                     token = day[j:j + 1] + 'd'
                     tem_id_list.append(str(tem_dict[token]))
 
-                tem_id_str = '-'.join(tem_id_list)
+                # tem_id_str = '-'.join(tem_id_list)
+                tem_id_str = '-'.join(tem_id_list[4:])
                 fw.write("%s %s\n" % (tem_id_str, time_str))
 
 preprocess("train")

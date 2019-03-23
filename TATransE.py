@@ -376,13 +376,15 @@ if __name__ == "__main__":
     model.eval()
     testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset, 'test2id.txt', 'test_tem.npy')
     testTimestampBatchList = getTimestampBatchList(testList)
-    timedict = getTimedict('./data/' + args.dataset, 'timedict.txt')
+    # timedict = getTimedict('./data/' + args.dataset, 'timedict.txt')
+    timedict = getTimedict('./data/' + args.dataset, 'timedict_wo_year.txt')
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
     L1_flag = model.L1_flag
     filter = model.filter
 
-    fw = open(os.path.join('./result/', args.dataset + '_timestamp.txt'), 'a')
+    fw = open(os.path.join('./result/', args.dataset + '_timestamp_wo_year.txt'), 'a')
+    # fw = open(os.path.join('./result/', args.dataset + '_timestamp_wo_year.txt'), 'a')
     writeList = [filename, 'testSet']
     fw.write('\t'.join(writeList) + '\n')
     for timestampBatchList in testTimestampBatchList:

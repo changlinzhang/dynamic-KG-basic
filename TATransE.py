@@ -251,11 +251,7 @@ if __name__ == "__main__":
 
                 if args.loss_type == 0:
                     losses = loss_function(pos, neg, margin)
-                else:
-                    labels = torch.squeeze(torch.cat([torch.ones((pos_h_batch.size()[0], 1)), torch.zeros((neg_h_batch.size()[0], 1))]))
-                    print(labels.size())
-                    print(torch.cat([pos, neg]).size())
-                    losses = loss_function(torch.cat([pos, neg]), labels)
+
                 ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
                 rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
                 losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
@@ -282,7 +278,7 @@ if __name__ == "__main__":
 
     # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
 
-    testBatchList = getBatchList(testList, 2)
+    testBatchList = getBatchList(testList, 1)
     dict = {}
     # for quadruple in testList:
     for quadruple in testBatchList:

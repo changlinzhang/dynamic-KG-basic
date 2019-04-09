@@ -297,50 +297,48 @@ if __name__ == "__main__":
                 losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings) + loss.normLoss(tem_embeddings)
                 print("Valid batch loss: %d %f" % (epoch, losses.item()))
 
-            if config.early_stopping_round > 0:
-                if epoch % 5 == 0:
-                    ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
-                    rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
-                    tem_embeddings = model.tem_embeddings.weight.data.cpu().numpy()
-                    L1_flag = model.L1_flag
-                    filter = model.filter
-                    batchNum = 2 * len(validList)
-                    hit1ValidSum, hit3ValidSum, hit10ValidSum, meanrankValidSum, meanrerankValidSum, _ = evaluation_batch(
-                        validList, quadrupleDict, model, ent_embeddings, rel_embeddings, tem_embeddings, L1_flag, filter, head=0)
-                    hit1Valid = hit1ValidSum / batchNum
-                    hit3Valid = hit3ValidSum / batchNum
-                    hit10Valid = hit10ValidSum / batchNum
-                    meanrankValid = meanrankValidSum / batchNum
-                    meanrerankValid = meanrerankValidSum / batchNum
-                    now_meanrank = meanrankValid
-                    if epoch == 0:
-                        best_meanrank = now_meanrank
-                        best_epoch = 0
-                        meanrank_not_decrease_time = 0
-                        lr_decrease_time = 0
-                    else:
-                        if now_meanrank < best_meanrank:
-                            meanrank_not_decrease_time = 0
-                            best_meanrank = now_meanrank
-                            torch.save(model, os.path.join('./model/' + args.dataset, filename))
-                        else:
-                            meanrank_not_decrease_time += 1
-                            # If the result hasn't improved for consecutive 5 evaluations, decrease learning rate
-                            if meanrank_not_decrease_time == 5:
-                                lr_decrease_time += 1
-                                if lr_decrease_time == config.early_stopping_round:
-                                    break
-                                else:
-                                    optimizer.param_groups[0]['lr'] *= 0.5
-                                    meanrank_not_decrease_time = 0
+            # if config.early_stopping_round > 0:
+            #     if epoch % 5 == 0:
+            #         ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
+            #         rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
+            #         tem_embeddings = model.tem_embeddings.weight.data.cpu().numpy()
+            #         L1_flag = model.L1_flag
+            #         filter = model.filter
+            #         batchNum = 2 * len(validList)
+            #         hit1ValidSum, hit3ValidSum, hit10ValidSum, meanrankValidSum, meanrerankValidSum, _ = evaluation_batch(
+            #             validList, quadrupleDict, model, ent_embeddings, rel_embeddings, tem_embeddings, L1_flag, filter, head=0)
+            #         hit1Valid = hit1ValidSum / batchNum
+            #         hit3Valid = hit3ValidSum / batchNum
+            #         hit10Valid = hit10ValidSum / batchNum
+            #         meanrankValid = meanrankValidSum / batchNum
+            #         meanrerankValid = meanrerankValidSum / batchNum
+            #         now_meanrank = meanrankValid
+            #         if epoch == 0:
+            #             best_meanrank = now_meanrank
+            #             best_epoch = 0
+            #             meanrank_not_decrease_time = 0
+            #             lr_decrease_time = 0
+            #         else:
+            #             if now_meanrank < best_meanrank:
+            #                 meanrank_not_decrease_time = 0
+            #                 best_meanrank = now_meanrank
+            #                 torch.save(model, os.path.join('./model/' + args.dataset, filename))
+            #             else:
+            #                 meanrank_not_decrease_time += 1
+            #                 # If the result hasn't improved for consecutive 5 evaluations, decrease learning rate
+            #                 if meanrank_not_decrease_time == 5:
+            #                     lr_decrease_time += 1
+            #                     if lr_decrease_time == config.early_stopping_round:
+            #                         break
+            #                     else:
+            #                         optimizer.param_groups[0]['lr'] *= 0.5
+            #                         meanrank_not_decrease_time = 0
 
             if (epoch + 1) % 10 == 0 or epoch == 0:
                 torch.save(model, os.path.join('./model/' + args.dataset, filename))
 
     model.eval()
-    testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset, 'test2id.txt', 'test_tem.npy')
-    # testBatchList = getBatchList(testList, config.num_batches)
-    testBatchList = getBatchList(testList, config.batch_size)
+    testTotal, testList, testDict = load_quadruples_TTransE('./data/' + args.dataset, 'test2id.txt')
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
     rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
@@ -348,26 +346,36 @@ if __name__ == "__main__":
     L1_flag = model.L1_flag
     filter = model.filter
 
-    # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, quadrupleDict, model, ent_embeddings, rel_embeddings, tem_embeddings, L1_flag, filter, head=0)
-    hit1TestSum = 0
-    hit3TestSum = 0
-    hit10TestSum = 0
-    meanrankTestSum = 0
-    meanrerankTestSum = 0
-    batchNum = 2*len(testList)
-    for batchList in testBatchList:
-        hit1TestSubSum, hit3TestSubSum, hit10TestSubSum, meanrankTestSubSum, meanrerankTestSubSum, batchSubNum = evaluation_batch(batchList, quadrupleDict, model, ent_embeddings, rel_embeddings, tem_embeddings, L1_flag, filter, head=0)
-        hit1TestSum += hit1TestSubSum
-        hit3TestSum += hit3TestSubSum
-        hit10TestSum += hit10TestSubSum
-        meanrankTestSum += meanrankTestSubSum
-        meanrerankTestSum += meanrerankTestSubSum
-        # batchNum += batchSubNum
-    hit1Test = hit1TestSum / batchNum
-    hit3Test = hit3TestSum / batchNum
-    hit10Test = hit10TestSum / batchNum
-    meanrankTest = meanrankTestSum / batchNum
-    meanrerankTest = meanrerankTestSum / batchNum
+    # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+
+    # testBatchList = getBatchList(testList, 1)
+    dict = {}
+    for quadruple in testList:
+    # for quadruple in testBatchList:
+        head, tail, rel, time = getFourElement(quadruple)
+        tri_sign = str(head)+'_'+str(rel)+'_'+str(tail)
+        if tri_sign not in dict:
+            dict[tri_sign] = []
+        tmplist = []
+        tmplist.append(quadruple)
+        rankList = evaluation_batch(tmplist, quadrupleDict, dict, model, ent_embeddings, rel_embeddings, tem_embeddings, L1_flag, filter, head=0)
+        # print(np.array(rankList).shape)
+        dict[tri_sign].append(rankList)
+
+    total_ranks = np.array([])
+    for rankListArray in dict.values():
+        real_rankList = np.mean(rankListArray)
+        print(np.array(total_ranks).shape)
+        print(np.array(real_rankList).shape)
+        total_ranks = np.concatenate((total_ranks, real_rankList), axis=0)
+
+    meanrankTest = np.mean(1.0 / total_ranks)
+    meanrerankTest = np.mean(total_ranks)
+    hits = []
+    for hit in [1, 3, 10]:
+        avg_count = np.mean((total_ranks <= hit))
+        hits.append(avg_count)
+    hit1Test, hit3Test, hit10Test = hits[0], hits[1], hits[2]
 
     writeList = [filename,
         'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]

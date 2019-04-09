@@ -153,7 +153,7 @@ if __name__ == "__main__":
     if args.loss_type == 0:
         config.loss_function = loss.marginLoss
 
-    config.entity_total, config.relation_total = get_total_number('./data/' + args.dataset, 'stat.txt')
+    config.entity_total, config.relation_total, _ = get_total_number('./data/' + args.dataset, 'stat.txt')
     # config.batch_size = trainTotal // config.num_batches
     config.batch_size = args.batch_size
 

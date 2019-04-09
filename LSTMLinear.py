@@ -52,13 +52,13 @@ class LSTMCell(nn.Module):
         # activations
         gates = preact[:, :3 * self.hidden_size].sigmoid()
         # g_t = preact[:, 3 * self.hidden_size:].tanh()
-        g_t = self.linear_acti(preact[:, 3 * self.hidden_size:])
+        g_t = preact[:, 3 * self.hidden_size:]
         i_t = gates[:, :self.hidden_size]
         f_t = gates[:, self.hidden_size:2 * self.hidden_size]
         o_t = gates[:, -self.hidden_size:]
 
         c_t = th.mul(c, f_t) + th.mul(i_t, g_t)
-        h_t = th.mul(o_t, self.linear_acti(c_t))
+        h_t = th.mul(o_t, c_t)
 
         h_t = h_t.view(1, h_t.size(0), -1)
         c_t = c_t.view(1, c_t.size(0), -1)

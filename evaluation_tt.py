@@ -85,7 +85,7 @@ def evaluation_helper(testList, tripleDict, model, ent_embeddings, rel_embedding
     if filter == False:
         rankListTail = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(tailList, rankArrayTail)]
     else:
-        rankListTail = [argwhereTail(elem[0], elem[1], elem[2], elem[3], tripleDict)
+        rankListTail = [argwhereTail(elem[0], elem[1], elem[2], elem[3], elem[4], tripleDict)
                         for elem in zip(headList, tailList, relList, timeList, rankArrayTail)]
 
     isHit1ListTail = [x for x in rankListTail if x < 1]
@@ -101,7 +101,7 @@ def evaluation_helper(testList, tripleDict, model, ent_embeddings, rel_embedding
     if filter == False:
         rankListHead = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(headList, rankArrayHead)]
     else:
-        rankListHead = [argwhereHead(elem[0], elem[1], elem[2], elem[3], tripleDict)
+        rankListHead = [argwhereHead(elem[0], elem[1], elem[2], elem[3], elem[4], tripleDict)
                         for elem in zip(headList, tailList, relList, timeList, rankArrayHead)]
 
     re_rankListHead = [1.0/(x+1) for x in rankListHead]

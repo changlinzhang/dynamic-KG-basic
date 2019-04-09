@@ -77,6 +77,9 @@ def getFourElements(quadrupleList):
     timeList = [quadruple.t for quadruple in quadrupleList]
     return headList, tailList, relList, timeList
 
+def getFourElement(quadruple):
+    return quadruple.s, quadruple.o, quadruple.r, quadruple.t
+
 def getThreeElements(tripleList):
     headList = [triple.s for triple in tripleList]
     tailList = [triple.o for triple in tripleList]

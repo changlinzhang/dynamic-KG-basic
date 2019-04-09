@@ -153,7 +153,7 @@ if __name__ == "__main__":
     if args.loss_type == 0:
         config.loss_function = loss.marginLoss
 
-    config.entity_total, config.relation_total = get_total_number('./data/' + args.dataset, 'stat.txt')
+    config.entity_total, config.relation_total, _ = get_total_number('./data/' + args.dataset, 'stat.txt')
     # config.batch_size = trainTotal // config.num_batches
     config.batch_size = args.batch_size
 
@@ -274,32 +274,39 @@ if __name__ == "__main__":
     model.eval()
     testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset, 'test2id.txt', 'test_tem.npy')
     # testBatchList = getBatchList(testList, config.num_batches)
-    testBatchList = getBatchList(testList, config.batch_size)
+    # testBatchList = getBatchList(testList, config.batch_size)
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
     L1_flag = model.L1_flag
     filter = model.filter
 
     # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
-    hit1TestSum = 0
-    hit3TestSum = 0
-    hit10TestSum = 0
-    meanrankTestSum = 0
-    meanrerankTestSum = 0
-    batchNum = 2*len(testList)
-    for batchList in testBatchList:
-        hit1TestSubSum, hit3TestSubSum, hit10TestSubSum, meanrankTestSubSum, meanrerankTestSubSum, batchSubNum = evaluation_batch(batchList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
-        hit1TestSum += hit1TestSubSum
-        hit3TestSum += hit3TestSubSum
-        hit10TestSum += hit10TestSubSum
-        meanrankTestSum += meanrankTestSubSum
-        meanrerankTestSum += meanrerankTestSubSum
-        # batchNum += batchSubNum
-    hit1Test = hit1TestSum / batchNum
-    hit3Test = hit3TestSum / batchNum
-    hit10Test = hit10TestSum / batchNum
-    meanrankTest = meanrankTestSum / batchNum
-    meanrerankTest = meanrerankTestSum / batchNum
+
+    testBatchList = getBatchList(testList, 2)
+    dict = {}
+    # for quadruple in testList:
+    for quadruple in testBatchList:
+        head, tail, rel, time = getFourElements(quadruple)
+        tri_sign = str(head)+'_'+str(rel)+'_'+str(tail)
+        if tri_sign not in dict:
+            dict[tri_sign] = []
+        # tmplist = []
+        # tmplist.append(quadruple)
+        rankList = evaluation_batch(quadruple, tripleDict, dict, model, ent_embeddings, L1_flag, filter, head=0)
+        dict[tri_sign].append(rankList)
+
+    total_ranks = np.array([])
+    for rankListArray in dict.values():
+        real_rankList = np.mean(rankListArray)
+        total_ranks = np.concatenate((total_ranks, real_rankList))
+
+    meanrankTest = np.mean(1.0 / total_ranks)
+    meanrerankTest = np.mean(total_ranks)
+    hits = []
+    for hit in [1, 3, 10]:
+        avg_count = np.mean((total_ranks <= hit))
+        hits.append(avg_count)
+    hit1Test, hit3Test, hit10Test = hits[0], hits[1], hits[2]
 
     writeList = [filename,
         'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]

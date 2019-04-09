@@ -21,7 +21,7 @@ import random
 
 from utils import *
 from data import *
-from evaluation_distmult_wj import *
+from evaluation_distmult import *
 import loss
 import model
 
@@ -53,6 +53,7 @@ self.entity_total: The number of different entities.
 self.relation_total: The number of different relations.
 self.batch_size: How many instances is contained in one batch?
 """
+
 
 class Config(object):
     def __init__(self):
@@ -265,7 +266,6 @@ if __name__ == "__main__":
                 ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
                 rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
                 losses = losses + args.lmbda * (loss.regulLoss(ent_embeddings) + loss.regulLoss(rseq_embeddings))
-                # losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
 
                 losses.backward()
                 optimizer.step()

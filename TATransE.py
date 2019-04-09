@@ -54,6 +54,7 @@ self.relation_total: The number of different relations.
 self.batch_size: How many instances is contained in one batch?
 """
 
+
 class Config(object):
     def __init__(self):
         self.dropout = 0
@@ -74,6 +75,7 @@ class Config(object):
         self.entity_total = 0
         self.relation_total = 0
         self.batch_size = 0
+
 
 if __name__ == "__main__":
 
@@ -200,7 +202,6 @@ if __name__ == "__main__":
              'op', str(args.optimizer),
              'lo', str(args.loss_type),]) + '_TATransE.ckpt'
     path_name = os.path.join('./model/' + args.dataset, filename)
-    # path_name = os.path.join('./model/', filename)
     if os.path.exists(path_name):
         model = torch.load(path_name)
     else:
@@ -268,7 +269,6 @@ if __name__ == "__main__":
                 print("Train total loss: %d %f" % (epoch, total_loss[0]))
 
             if (epoch + 1) % 5 == 0 or epoch == 0:
-            #    torch.save(model, os.path.join('./model/', filename))
                 torch.save(model, os.path.join('./model/' + args.dataset, filename))
 
     model.eval()

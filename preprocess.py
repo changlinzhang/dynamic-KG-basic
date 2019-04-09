@@ -12,42 +12,17 @@ tem_dict = {
 entity_dict = {}
 relation_dict = {}
 
-fw_stat = open("data/icews14/stat.txt", "w")
-
 count = 0
 
 def preprocess(data_part):
-    data_path = "data/icews14/icews_2014_"+data_part+".txt"
-    tri_write_path = "data/icews14/"+data_part+"2id.txt"
-    tem_write_path = "data/icews14/"+data_part+"_tem.npy"
-    fw_tri_write = open(tri_write_path, "w")
+    data_path = "data/ICEWS18/" + data_part + "2id.txt"
+    tem_write_path = "data/ICEWS18/" + data_part + "_tem.npy"
     tem = []
     with open(data_path) as fp:
         for i,line in enumerate(fp):
             global count
             count += 1
             info = line.strip().split("\t")
-
-            entity1_id = None
-            if info[0] in entity_dict:
-                entity1_id = entity_dict[info[0]]
-            else:
-                entity1_id = len(entity_dict)
-                entity_dict[info[0]] = entity1_id
-
-            entity2_id = None
-            if info[2] in entity_dict:
-                entity2_id = entity_dict[info[2]]
-            else:
-                entity2_id = len(entity_dict)
-                entity_dict[info[2]] = entity2_id
-
-            relation_id = None
-            if info[1] in relation_dict:
-                relation_id = relation_dict[info[1]]
-            else:
-                relation_id = len(relation_dict)
-                relation_dict[info[1]] = relation_id
 
             year, month, day = info[3].split("-")
             tem_id_list = []
@@ -63,15 +38,9 @@ def preprocess(data_part):
                 token = day[j:j+1]+'d'
                 tem_id_list.append(tem_dict[token])
 
-            fw_tri_write.write("%-8d %-8d %-8d\n" % (entity1_id, relation_id, entity2_id))
             tem.append(tem_id_list)
     np_tem = np.array(tem)
     np.save(tem_write_path, np_tem)
-    fw_tri_write.close()
 
 preprocess("train")
 preprocess("test")
-preprocess("valid")
-print(count)
-fw_stat.write(str(len(entity_dict)) + " " + str(len(relation_dict)))
-fw_stat.close()

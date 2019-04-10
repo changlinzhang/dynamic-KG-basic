@@ -277,22 +277,32 @@ if __name__ == "__main__":
 
     # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
 
-    dict = {}
+    head_dict = {}
+    tail_dict = {}
     for triple in testList:
         head, tail, rel = getThreeElement(triple)
         tri_sign = str(head)+'_'+str(rel)+'_'+str(tail)
-        if tri_sign not in dict:
-            dict[tri_sign] = []
+        if tri_sign not in head_dict:
+            head_dict[tri_sign] = []
+            tail_dict[tri_sign] = []
         tmplist = []
         tmplist.append(triple)
-        rankList = evaluation_batch(tmplist, tripleDict, dict, model, ent_embeddings, rel_embeddings, L1_flag, filter, head=0)
-        dict[tri_sign].append(rankList[0])
+        rankhead, ranktail = evaluation_batch(tmplist, tripleDict, dict, model, ent_embeddings, rel_embeddings, L1_flag, filter, head=0)
+        head_dict[tri_sign].append(rankhead[0])
+        tail_dict[tri_sign].append(ranktail[0])
 
-    total_ranks = []
-    for rankListArray in dict.values():
-        real_rankList = np.mean(rankListArray) + 1
-        total_ranks.append(real_rankList)
-    total_ranks = np.array(total_ranks)
+    total_head_ranks = []
+    total_tail_ranks = []
+    for rankHeadList in head_dict.values():
+        real_rankHead = np.mean(rankHeadList) + 1
+        total_head_ranks.append(real_rankHead)
+    for rankTailList in head_dict.values():
+        real_rankTail = np.mean(rankTailList) + 1
+        total_tail_ranks.append(real_rankTail)
+    total_head_ranks = np.array(total_head_ranks)
+    total_tail_ranks = np.array(total_tail_ranks)
+    total_ranks = np.concatenate((total_head_ranks, total_tail_ranks))
+    print(len(total_ranks))
     meanrerankTest = np.mean(1.0 / total_ranks)
     meanrankTest = np.mean(total_ranks)
     hits = []

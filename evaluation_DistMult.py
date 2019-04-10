@@ -8,7 +8,7 @@ import math
 import torch
 import torch.autograd as autograd
 
-from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
+from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity, linear_kernel
 
 from data import *
 
@@ -99,75 +99,45 @@ def pairwise_L2_distances(A, B):
     return dist
 
 
-def evaluation_helper(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, head=0):
+def evaluation_helper(testList, tripleDict, model, ent_embeddings, rel_embeddings, L1_flag, filter, head=0):
     # embeddings are numpy likre
-    headList, tailList, relList, timeList = getFourElements(testList)
-    print(np.array(headList).shape)
-    print(np.array(timeList).shape)
+    headList, tailList, relList = getThreeElements(testList)
     h_e = ent_embeddings[headList]
     t_e = ent_embeddings[tailList]
+    r_e = rel_embeddings[relList]
 
-    test_r_batch = autograd.Variable(longTensor(relList))
-    test_time_batch = autograd.Variable(longTensor(timeList))
+    c_t_e = h_e * r_e
+    c_h_e = t_e * r_e
+    dist = linear_kernel(c_t_e, ent_embeddings)
 
-    rseq_e = model.get_rseq(test_r_batch, test_time_batch).data.cpu().numpy()
-
-    c_t_e = h_e + rseq_e
-    c_h_e = t_e - rseq_e
-    if L1_flag == True:
-        dist = pairwise_distances(c_t_e, ent_embeddings, metric='manhattan')
-    else:
-        dist = pairwise_distances(c_t_e, ent_embeddings, metric='euclidean')
-
-    rankArrayTail = np.argsort(dist, axis=1)
+    rankArrayTail = np.argsort(-dist, axis=1)
     if filter == False:
         rankListTail = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(tailList, rankArrayTail)]
     else:
         rankListTail = [argwhereTail(elem[0], elem[1], elem[2], elem[3], tripleDict)
                         for elem in zip(headList, tailList, relList, rankArrayTail)]
 
-    isHit1ListTail = [x for x in rankListTail if x < 1]
-    isHit3ListTail = [x for x in rankListTail if x < 3]
-    isHit10ListTail = [x for x in rankListTail if x < 10]
+    dist = linear_kernel(c_h_e, ent_embeddings)
 
-    if L1_flag == True:
-        dist = pairwise_distances(c_h_e, ent_embeddings, metric='manhattan')
-    else:
-        dist = pairwise_distances(c_h_e, ent_embeddings, metric='euclidean')
-
-    rankArrayHead = np.argsort(dist, axis=1)
+    rankArrayHead = np.argsort(-dist, axis=1)
     if filter == False:
         rankListHead = [int(np.argwhere(elem[1]==elem[0])) for elem in zip(headList, rankArrayHead)]
     else:
         rankListHead = [argwhereHead(elem[0], elem[1], elem[2], elem[3], tripleDict)
                         for elem in zip(headList, tailList, relList, rankArrayHead)]
 
-    return np.array([rankListHead, rankListTail])
-    # re_rankListHead = [1.0/(x+1) for x in rankListHead]
-    # re_rankListTail = [1.0/(x+1) for x in rankListTail]
-    #
-    # isHit1ListHead = [x for x in rankListHead if x < 1]
-    # isHit3ListHead = [x for x in rankListHead if x < 3]
-    # isHit10ListHead = [x for x in rankListHead if x < 10]
-    #
-    # totalRank = sum(rankListTail) + sum(rankListHead)
-    # totalReRank = sum(re_rankListHead) + sum(re_rankListTail)
-    # hit1Count = len(isHit1ListTail) + len(isHit1ListHead)
-    # hit3Count = len(isHit3ListTail) + len(isHit3ListHead)
-    # hit10Count = len(isHit10ListTail) + len(isHit10ListHead)
-    # tripleCount = len(rankListTail) + len(rankListHead)
-    #
-    # return hit1Count, hit3Count, hit10Count, totalRank, totalReRank, tripleCount
+    rankList = np.concatenate((rankListHead, rankListTail))
+    return rankList
 
 
-def process_data(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, L, head):
-    rankList = evaluation_helper(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, head)
+def process_data(testList, tripleDict, model, ent_embeddings, rel_embeddings, L1_flag, filter, L, head):
+    rankList = evaluation_helper(testList, tripleDict, model, ent_embeddings, rel_embeddings, L1_flag, filter, head)
 
     L.append((rankList))
 
 
 # Use multiprocessing to speed up evaluation
-def evaluation(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, k=0, head=0):
+def evaluation(testList, tripleDict, model, ent_embeddings, rel_embeddings, L1_flag, filter, k=0, head=0):
     # embeddings are numpy like
 
     if k > len(testList):
@@ -176,7 +146,7 @@ def evaluation(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filte
         testList = random.sample(testList, k=k)
 
     L = []
-    process_data(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, L, head)
+    process_data(testList, tripleDict, model, ent_embeddings, rel_embeddings, L1_flag, filter, L, head)
 
     resultList = list(L)
     rankList = resultList
@@ -184,7 +154,7 @@ def evaluation(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filte
     return rankList
 
 
-def evaluation_batch(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, k=0, head=0):
+def evaluation_batch(testList, tripleDict, model, ent_embeddings, rel_embeddings, L1_flag, filter, k=0, head=0):
     # embeddings are numpy like
 
     if k > len(testList):
@@ -193,9 +163,10 @@ def evaluation_batch(testList, tripleDict, dict, model, ent_embeddings, L1_flag,
         testList = random.sample(testList, k=k)
 
     L = []
-    process_data(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, L, head)
+    process_data(testList, tripleDict, model, ent_embeddings, rel_embeddings, L1_flag, filter, L, head)
 
     resultList = list(L)
     rankList = resultList
 
     return rankList
+

@@ -21,7 +21,7 @@ import random
 
 from utils import *
 from data import *
-from evaluation_TATransE import *
+from evaluation_DistMult import *
 import loss
 import model
 
@@ -70,11 +70,12 @@ class Config(object):
         self.filter = True
         self.momentum = 0.9
         self.optimizer = optim.Adam
-        self.loss_function = loss.marginLoss
+        self.loss_function = loss.binaryCrossLoss
         self.loss_type = 0
         self.entity_total = 0
         self.relation_total = 0
         self.batch_size = 0
+        self.tem_total = 32
 
 
 if __name__ == "__main__":
@@ -109,6 +110,7 @@ if __name__ == "__main__":
     argparser.add_argument('-lo', '--loss_type', type=int, default=0)
     argparser.add_argument('-p', '--port', type=int, default=5000)
     argparser.add_argument('-np', '--num_processes', type=int, default=4)
+    argparser.add_argument('-lm', '--lmbda', type=float, default=0.01)
     argparser.add_argument('-test', '--test', type=int, default=0)
 
     args = argparser.parse_args()
@@ -116,13 +118,19 @@ if __name__ == "__main__":
     if args.seed != 0:
         torch.manual_seed(args.seed)
 
-    trainTotal, trainList, trainDict, trainTimes = load_quadruples('./data/' + args.dataset, 'train2id.txt', 'train_tem.npy')
-    quadrupleTotal, quadrupleList, tripleDict, _ = load_quadruples('./data/' + args.dataset, 'train2id.txt', 'train_tem.npy', 'test2id.txt', 'test_tem.npy')
+    trainTotal, trainList, trainDict = loadTriple('./data/' + args.dataset, 'train2id.txt')
+    validTotal, validList, validDict = loadTriple('./data/' + args.dataset, 'valid2id.txt')
+    quadrupleTotal, quadrupleList, tripleDict = loadTriple('./data/' + args.dataset, 'train2id.txt', 'test2id.txt')
     config = Config()
     config.dropout = args.dropout
     config.score = args.score
     config.dataset = args.dataset
     config.learning_rate = args.learning_rate
+
+    if args.dataset == "GDELT":
+        config.tem_total = 46
+    else:
+        config.tem_total = 32
 
     config.early_stopping_round = args.early_stopping_round
 
@@ -151,7 +159,7 @@ if __name__ == "__main__":
         config.optimizer = optim.RMSprop
 
     if args.loss_type == 0:
-        config.loss_function = loss.marginLoss
+        config.loss_function = loss.binaryCrossLoss
 
     config.entity_total, config.relation_total, _ = get_total_number('./data/' + args.dataset, 'stat.txt')
     # config.batch_size = trainTotal // config.num_batches
@@ -200,12 +208,15 @@ if __name__ == "__main__":
              'mo', str(args.momentum),
              's', str(args.seed),
              'op', str(args.optimizer),
-             'lo', str(args.loss_type),]) + '_TATransE.ckpt'
+             'lo', str(args.loss_type),
+             'lmbda', str(args.lmbda)]) + '_Distmult.ckpt'
     path_name = os.path.join('./model/' + args.dataset, filename)
+    # path_name = os.path.join('./model/', filename)
+    print(path_name)
     if os.path.exists(path_name):
         model = torch.load(path_name)
     else:
-        model = model.TATransEModel(config)
+        model = model.DistmultModel(config)
 
     if USE_CUDA:
         model.cuda()
@@ -226,10 +237,10 @@ if __name__ == "__main__":
             random.shuffle(trainBatchList)
             for batchList in trainBatchList:
                 if config.filter == True:
-                    pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_all(batchList,
+                    pos_h_batch, pos_t_batch, pos_r_batch, neg_h_batch, neg_t_batch, neg_r_batch = getBatch_filter_all_tri(batchList,
                         config.entity_total, tripleDict)
                 else:
-                    pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_all(batchList,
+                    pos_h_batch, pos_t_batch, pos_r_batch, neg_h_batch, neg_t_batch, neg_r_batch = getBatch_raw_all_tri(batchList,
                         config.entity_total)
 
                 batch_entity_set = set(pos_h_batch + pos_t_batch + neg_h_batch + neg_t_batch)
@@ -240,21 +251,19 @@ if __name__ == "__main__":
                 pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
                 pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
                 pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
-                pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
                 neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
                 neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
                 neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
-                neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
 
                 model.zero_grad()
-                pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
+                pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, neg_h_batch, neg_t_batch, neg_r_batch)
 
                 if args.loss_type == 0:
-                    losses = loss_function(pos, neg, margin)
-
+                    losses = loss_function(pos, neg)
                 ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-                rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
-                losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
+                rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
+                losses = losses + args.lmbda * (loss.regulLoss(ent_embeddings) + loss.regulLoss(rel_embeddings))
+
                 losses.backward()
                 optimizer.step()
                 total_loss += losses.data
@@ -264,38 +273,141 @@ if __name__ == "__main__":
                 print(now_time - start_time)
                 print("Train total loss: %d %f" % (epoch, total_loss[0]))
 
+            if total_loss[0] > 3000: # problem: loss explosion, dont save model
+                break
+
+            if epoch % 5 == 0:
+                if config.filter == True:
+                    pos_h_batch, pos_t_batch, pos_r_batch, neg_h_batch, neg_t_batch, neg_r_batch = getBatch_filter_random_tri(
+                        validList,
+                        config.batch_size, config.entity_total, tripleDict)
+                else:
+                    pos_h_batch, pos_t_batch, pos_r_batch, neg_h_batch, neg_t_batch, neg_r_batch = getBatch_raw_random_tri(
+                        validList,
+                        config.batch_size, config.entity_total)
+                pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
+                pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
+                pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
+                neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
+                neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
+                neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
+
+                pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, neg_h_batch, neg_t_batch,
+                                 neg_r_batch)
+
+                if args.loss_type == 0:
+                    losses = loss_function(pos, neg)
+                else:
+                    losses = loss_function(pos, neg)
+                ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
+                rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
+                losses = losses + args.lmbda * (loss.regulLoss(ent_embeddings) + loss.regulLoss(rel_embeddings))
+                print("Valid batch loss: %d %f" % (epoch, losses.item()))
+
+            # if config.early_stopping_round > 0:
+            #     if epoch == 0:
+            #         ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
+            #         L1_flag = model.L1_flag
+            #         filter = model.filter
+            #         batchNum = 2 * len(validList)
+            #         validBatchList = getBatchList(validList, config.batch_size)
+            #         hit1ValidSum = 0
+            #         hit3ValidSum = 0
+            #         hit10ValidSum = 0
+            #         meanrankValidSum = 0
+            #         meanrerankValidSum = 0
+            #         batchNum = 2 * len(validList)
+            #         for batchList in validBatchList:
+            #             hit1ValidSubSum, hit3ValidSubSum, hit10ValidSubSum, meanrankValidSubSum, meanrerankValidSubSum, _ = evaluation_batch(
+            #                 batchList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+            #             hit1ValidSum += hit1ValidSubSum
+            #             hit3ValidSum += hit3ValidSubSum
+            #             hit10ValidSum += hit10ValidSubSum
+            #             meanrankValidSum += meanrankValidSubSum
+            #             meanrerankValidSum += meanrerankValidSubSum
+            #         hit1Valid = hit1ValidSum / batchNum
+            #         hit3Valid = hit3ValidSum / batchNum
+            #         hit10Valid = hit10ValidSum / batchNum
+            #         meanrankValid = meanrankValidSum / batchNum
+            #         meanrerankValid = meanrerankValidSum / batchNum
+            #         best_meanrank = meanrankValid
+            #         torch.save(model, os.path.join('./model/' + args.dataset, filename))
+            #         best_epoch = 0
+            #         meanrank_not_decrease_time = 0
+            #         lr_decrease_time = 0
+            #     # if USE_CUDA:
+            #     # model.cuda()
+            #
+            #     # Evaluate on validation set for every 5 epochs
+            #     elif epoch % 5 == 0:
+            #         ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
+            #         L1_flag = model.L1_flag
+            #         filter = model.filter
+            #         batchNum = 2 * len(validList)
+            #         validBatchList = getBatchList(validList, config.batch_size)
+            #         hit1ValidSum = 0
+            #         hit3ValidSum = 0
+            #         hit10ValidSum = 0
+            #         meanrankValidSum = 0
+            #         meanrerankValidSum = 0
+            #         batchNum = 2 * len(validList)
+            #         for batchList in validBatchList:
+            #             hit1ValidSubSum, hit3ValidSubSum, hit10ValidSubSum, meanrankValidSubSum, meanrerankValidSubSum, _ = evaluation_batch(
+            #                 batchList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
+            #             hit1ValidSum += hit1ValidSubSum
+            #             hit3ValidSum += hit3ValidSubSum
+            #             hit10ValidSum += hit10ValidSubSum
+            #             meanrankValidSum += meanrankValidSubSum
+            #             meanrerankValidSum += meanrerankValidSubSum
+            #         hit1Valid = hit1ValidSum / batchNum
+            #         hit3Valid = hit3ValidSum / batchNum
+            #         hit10Valid = hit10ValidSum / batchNum
+            #         meanrankValid = meanrankValidSum / batchNum
+            #         meanrerankValid = meanrerankValidSum / batchNum
+            #         now_meanrank = meanrankValid
+            #         if now_meanrank < best_meanrank:
+            #             meanrank_not_decrease_time = 0
+            #             best_meanrank = now_meanrank
+            #             torch.save(model, os.path.join('./model/' + args.dataset, filename))
+            #         else:
+            #             meanrank_not_decrease_time += 1
+            #             # If the result hasn't improved for consecutive 5 evaluations, decrease learning rate
+            #             if meanrank_not_decrease_time == 5:
+            #                 lr_decrease_time += 1
+            #                 if lr_decrease_time == config.early_stopping_round:
+            #                     break
+            #                 else:
+            #                     optimizer.param_groups[0]['lr'] *= 0.5
+            #                     meanrank_not_decrease_time = 0
+
             if (epoch + 1) % 5 == 0 or epoch == 0:
                 torch.save(model, os.path.join('./model/' + args.dataset, filename))
 
     model.eval()
-    testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset, 'test2id.txt', 'test_tem.npy')
+    testTotal, testList, testDict = loadTriple('./data/' + args.dataset, 'test2id.txt')
     # testBatchList = getBatchList(testList, config.num_batches)
-    # testBatchList = getBatchList(testList, config.batch_size)
+    testBatchList = getBatchList(testList, config.batch_size)
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
+    rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
     L1_flag = model.L1_flag
     filter = model.filter
-
-    # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
-
-    testBatchList = getBatchList(testList, 1)
     dict = {}
-    # for quadruple in testList:
-    for quadruple in testBatchList:
-        head, tail, rel, time = getFourElements(quadruple)
+    for triple in testList:
+        head, tail, rel = getThreeElement(triple)
         tri_sign = str(head)+'_'+str(rel)+'_'+str(tail)
         if tri_sign not in dict:
             dict[tri_sign] = []
-        # tmplist = []
-        # tmplist.append(quadruple)
-        rankList = evaluation_batch(quadruple, tripleDict, dict, model, ent_embeddings, L1_flag, filter, head=0)
-        dict[tri_sign].append(rankList)
+        tmplist = []
+        tmplist.append(triple)
+        rankList = evaluation_batch(tmplist, tripleDict, model, ent_embeddings, rel_embeddings, L1_flag, filter, head=0)
+        dict[tri_sign].append(rankList[0])
 
-    total_ranks = np.array([])
+    total_ranks = []
     for rankListArray in dict.values():
-        real_rankList = np.mean(rankListArray)
-        total_ranks = np.concatenate((total_ranks, real_rankList))
-
+        real_rankList = np.mean(rankListArray) + 1
+        total_ranks.append(real_rankList)
+    total_ranks = np.array(total_ranks)
     meanrerankTest = np.mean(1.0 / total_ranks)
     meanrankTest = np.mean(total_ranks)
     hits = []
@@ -305,9 +417,9 @@ if __name__ == "__main__":
     hit1Test, hit3Test, hit10Test = hits[0], hits[1], hits[2]
 
     writeList = [filename,
-        'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]
+                 'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest,
+                 '%.6f' % meanrerankTest]
 
     # Write the result into file
-    with open(os.path.join('./result/', args.dataset + '.txt'), 'a') as fw:
+    with open(os.path.join('./result/', args.dataset + '_distmult.txt'), 'a') as fw:
         fw.write('\t'.join(writeList) + '\n')
-

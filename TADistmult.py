@@ -21,7 +21,7 @@ import random
 
 from utils import *
 from data import *
-from evaluation_distmult import *
+from evaluation_DistMult import *
 import loss
 import model
 
@@ -417,8 +417,8 @@ if __name__ == "__main__":
     hit1Test = hit1TestSum / batchNum
     hit3Test = hit3TestSum / batchNum
     hit10Test = hit10TestSum / batchNum
-    meanrankTest = meanrankTestSum / batchNum
-    meanrerankTest = meanrerankTestSum / batchNum
+    meanrerankTest = meanrankTestSum / batchNum
+    meanrankTest = meanrerankTestSum / batchNum
 
     writeList = [filename,
         'testSet', '%.6f' % hit1Test, '%.6f' % hit3Test, '%.6f' % hit10Test, '%.6f' % meanrankTest, '%.6f' % meanrerankTest]

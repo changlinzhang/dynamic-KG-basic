@@ -87,13 +87,6 @@ def evaluation_helper(testList, tripleDict, dict, model, ent_embeddings, rel_emb
         rankListTail = [argwhereTail(elem[0], elem[1], elem[2], elem[3], elem[4], tripleDict)
                         for elem in zip(headList, tailList, relList, timeList, rankArrayTail)]
 
-    print(np.array(rankArrayTail).shape)
-    print(np.array(rankListTail).shape)
-
-    isHit1ListTail = [x for x in rankListTail if x < 1]
-    isHit3ListTail = [x for x in rankListTail if x < 3]
-    isHit10ListTail = [x for x in rankListTail if x < 10]
-
     if L1_flag == True:
         dist = pairwise_distances(c_h_e, ent_embeddings, metric='manhattan')
     else:
@@ -106,26 +99,8 @@ def evaluation_helper(testList, tripleDict, dict, model, ent_embeddings, rel_emb
         rankListHead = [argwhereHead(elem[0], elem[1], elem[2], elem[3], elem[4], tripleDict)
                         for elem in zip(headList, tailList, relList, timeList, rankArrayHead)]
 
-    re_rankListHead = [1.0/(x+1) for x in rankListHead]
-    re_rankListTail = [1.0/(x+1) for x in rankListTail]
-
-    rankList = np.array([rankListHead, rankListTail])
-    # print(np.array(rankListHead).shape)
-    # print(np.array(rankListTail).shape)
-    # print(np.array(rankList).shape)
+    rankList = np.concatenate((rankListHead, rankListTail))
     return rankList
-    # isHit1ListHead = [x for x in rankListHead if x < 1]
-    # isHit3ListHead = [x for x in rankListHead if x < 3]
-    # isHit10ListHead = [x for x in rankListHead if x < 10]
-    #
-    # totalRank = sum(rankListTail) + sum(rankListHead)
-    # totalReRank = sum(re_rankListHead) + sum(re_rankListTail)
-    # hit1Count = len(isHit1ListTail) + len(isHit1ListHead)
-    # hit3Count = len(isHit3ListTail) + len(isHit3ListHead)
-    # hit10Count = len(isHit10ListTail) + len(isHit10ListHead)
-    # tripleCount = len(rankListTail) + len(rankListHead)
-    #
-    # return hit1Count, hit3Count, hit10Count, totalRank, totalReRank, tripleCount
 
 
 def process_data(testList, tripleDict, dict, model, ent_embeddings, rel_embeddings, tem_embeddings, L1_flag, filter, L, head):

@@ -21,7 +21,7 @@ import random
 
 from utils import *
 from data import *
-from evaluation_tt import *
+from evaluation_TTransE import *
 import loss
 import model
 
@@ -360,17 +360,15 @@ if __name__ == "__main__":
         tmplist.append(quadruple)
         rankList = evaluation_batch(tmplist, quadrupleDict, dict, model, ent_embeddings, rel_embeddings, tem_embeddings, L1_flag, filter, head=0)
         # print(np.array(rankList).shape)
-        dict[tri_sign].append(rankList)
+        dict[tri_sign].append(rankList[0])
 
-    total_ranks = np.array([])
+    total_ranks = []
     for rankListArray in dict.values():
-        real_rankList = np.mean(rankListArray)
-        print(np.array(total_ranks).shape)
-        print(np.array(real_rankList).shape)
-        total_ranks = np.concatenate((total_ranks, real_rankList), axis=0)
-
-    meanrankTest = np.mean(1.0 / total_ranks)
-    meanrerankTest = np.mean(total_ranks)
+        real_rankList = np.mean(rankListArray) + 1
+        total_ranks.append(real_rankList)
+    total_ranks = np.array(total_ranks)
+    meanrerankTest = np.mean(1.0 / total_ranks)
+    meanrankTest = np.mean(total_ranks)
     hits = []
     for hit in [1, 3, 10]:
         avg_count = np.mean((total_ranks <= hit))

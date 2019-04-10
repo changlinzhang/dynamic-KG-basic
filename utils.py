@@ -25,6 +25,35 @@ def get_total_number(inPath, fileName):
             return int(line_split[0]), int(line_split[1]), int(line_split[2])
 
 
+def loadTriple(inPath, fileName, fileName2 = None):
+    tripleList = []
+    tripleTotal = 0
+    with open(os.path.join(inPath, fileName), 'r') as fr:
+        for line in fr:
+            tripleTotal += 1
+            line_split = line.split()
+            head = int(line_split[0])
+            tail = int(line_split[2])
+            rel = int(line_split[1])
+            tripleList.append(Triple(head, tail, rel))
+
+    if fileName2 is not None:
+        with open(os.path.join(inPath, fileName2), 'r') as fr:
+            for line in fr:
+                tripleTotal += 1
+                line_split = line.split()
+                head = int(line_split[0])
+                tail = int(line_split[2])
+                rel = int(line_split[1])
+                tripleList.append(Triple(head, tail, rel))
+
+    tripleDict = {}
+    for triple in tripleList:
+        tripleDict[(triple.s, triple.o, triple.r)] = True
+
+    return tripleTotal, tripleList, tripleDict
+
+
 def load_quadruples(inPath, fileName, temFileName, fileName2 = None, temFileName2 = None, fileName3 = None, temFileName3 = None):
     tem = np.load(os.path.join(inPath, temFileName)).tolist()
     with open(os.path.join(inPath, fileName), 'r') as fr:

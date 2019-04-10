@@ -157,6 +157,62 @@ class TADistmultModel(nn.Module):
 		return pos_rseq_e
 
 
+class DistmultModel(nn.Module):
+	def __init__(self, config):
+		super(DistmultModel, self).__init__()
+		self.learning_rate = config.learning_rate
+		self.early_stopping_round = config.early_stopping_round
+		self.L1_flag = config.L1_flag
+		self.filter = config.filter
+		self.embedding_size = config.embedding_size
+		self.entity_total = config.entity_total
+		self.relation_total = config.relation_total
+		self.batch_size = config.batch_size
+
+		self.criterion = nn.Softplus()
+		torch.nn.BCELoss()
+
+		self.dropout = nn.Dropout(config.dropout)
+
+		ent_weight = floatTensor(self.entity_total, self.embedding_size)
+		rel_weight = floatTensor(self.relation_total, self.embedding_size)
+		# Use xavier initialization method to initialize embeddings of entities and relations
+		nn.init.xavier_uniform(ent_weight)
+		nn.init.xavier_uniform(rel_weight)
+		self.ent_embeddings = nn.Embedding(self.entity_total, self.embedding_size)
+		self.rel_embeddings = nn.Embedding(self.relation_total, self.embedding_size)
+		self.ent_embeddings.weight = nn.Parameter(ent_weight)
+		self.rel_embeddings.weight = nn.Parameter(rel_weight)
+
+		normalize_entity_emb = F.normalize(self.ent_embeddings.weight.data, p=2, dim=1)
+		normalize_relation_emb = F.normalize(self.rel_embeddings.weight.data, p=2, dim=1)
+		self.ent_embeddings.weight.data = normalize_entity_emb
+		self.rel_embeddings.weight.data = normalize_relation_emb
+
+	def scoring(self, h, t, r):
+		return torch.sum(h * t * r, 1, False)
+
+	def forward(self, pos_h, pos_t, pos_r, neg_h, neg_t, neg_r):
+		pos_h_e = self.ent_embeddings(pos_h)
+		pos_t_e = self.ent_embeddings(pos_t)
+		pos_r_e = self.rel_embeddings(pos_r)
+
+		neg_h_e = self.ent_embeddings(neg_h)
+		neg_t_e = self.ent_embeddings(neg_t)
+		neg_r_e = self.rel_embeddings(neg_r)
+
+		pos_h_e = self.dropout(pos_h_e)
+		pos_t_e = self.dropout(pos_t_e)
+		pos_r_e = self.dropout(pos_r_e)
+		neg_h_e = self.dropout(neg_h_e)
+		neg_t_e = self.dropout(neg_t_e)
+		neg_r_e = self.dropout(neg_r_e)
+
+		pos = self.scoring(pos_h_e, pos_t_e, pos_r_e)
+		neg = self.scoring(neg_h_e, neg_t_e, neg_r_e)
+		return pos, neg
+
+
 class TATransEModel(nn.Module):
 	def __init__(self, config):
 		super(TATransEModel, self).__init__()
@@ -236,3 +292,59 @@ class TATransEModel(nn.Module):
 		pos_rseq_e = hidden_tem
 
 		return pos_rseq_e
+
+
+class TransEModel(nn.Module):
+	def __init__(self, config):
+		super(TransEModel, self).__init__()
+		self.score = config.score
+		self.learning_rate = config.learning_rate
+		self.early_stopping_round = config.early_stopping_round
+		self.L1_flag = config.L1_flag
+		self.filter = config.filter
+		self.embedding_size = config.embedding_size
+		self.entity_total = config.entity_total
+		self.relation_total = config.relation_total
+		self.batch_size = config.batch_size
+
+		self.dropout = nn.Dropout(config.dropout)
+
+		ent_weight = floatTensor(self.entity_total, self.embedding_size)
+		rel_weight = floatTensor(self.relation_total, self.embedding_size)
+		# Use xavier initialization method to initialize embeddings of entities and relations
+		nn.init.xavier_uniform(ent_weight)
+		nn.init.xavier_uniform(rel_weight)
+		self.ent_embeddings = nn.Embedding(self.entity_total, self.embedding_size)
+		self.rel_embeddings = nn.Embedding(self.relation_total, self.embedding_size)
+		self.ent_embeddings.weight = nn.Parameter(ent_weight)
+		self.rel_embeddings.weight = nn.Parameter(rel_weight)
+
+		normalize_entity_emb = F.normalize(self.ent_embeddings.weight.data, p=2, dim=1)
+		normalize_relation_emb = F.normalize(self.rel_embeddings.weight.data, p=2, dim=1)
+		self.ent_embeddings.weight.data = normalize_entity_emb
+		self.rel_embeddings.weight.data = normalize_relation_emb
+
+	def forward(self, pos_h, pos_t, pos_r, neg_h, neg_t, neg_r):
+		pos_h_e = self.ent_embeddings(pos_h)
+		pos_t_e = self.ent_embeddings(pos_t)
+		pos_r_e = self.rel_embeddings(pos_r)
+
+		neg_h_e = self.ent_embeddings(neg_h)
+		neg_t_e = self.ent_embeddings(neg_t)
+		neg_r_e = self.rel_embeddings(neg_r)
+
+		pos_h_e = self.dropout(pos_h_e)
+		pos_t_e = self.dropout(pos_t_e)
+		pos_r_e = self.dropout(pos_r_e)
+		neg_h_e = self.dropout(neg_h_e)
+		neg_t_e = self.dropout(neg_t_e)
+		neg_r_e = self.dropout(neg_r_e)
+
+		if self.L1_flag:
+			pos = torch.sum(torch.abs(pos_h_e + pos_r_e - pos_t_e), 1)
+			neg = torch.sum(torch.abs(neg_h_e + neg_r_e - neg_t_e), 1)
+		# L2 distance
+		else:
+			pos = torch.sum((pos_h_e + pos_r_e - pos_t_e) ** 2, 1)
+			neg = torch.sum((neg_h_e + neg_r_e - neg_t_e) ** 2, 1)
+		return pos, neg

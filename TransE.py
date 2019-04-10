@@ -21,7 +21,7 @@ import random
 
 from utils import *
 from data import *
-from evaluation_TATransE import *
+from evaluation_TransE import *
 import loss
 import model
 
@@ -116,8 +116,8 @@ if __name__ == "__main__":
     if args.seed != 0:
         torch.manual_seed(args.seed)
 
-    trainTotal, trainList, trainDict, trainTimes = load_quadruples('./data/' + args.dataset, 'train2id.txt', 'train_tem.npy')
-    quadrupleTotal, quadrupleList, tripleDict, _ = load_quadruples('./data/' + args.dataset, 'train2id.txt', 'train_tem.npy', 'test2id.txt', 'test_tem.npy')
+    trainTotal, trainList, trainDict = loadTriple('./data/' + args.dataset, 'train2id.txt')
+    quadrupleTotal, quadrupleList, tripleDict = loadTriple('./data/' + args.dataset, 'train2id.txt', 'test2id.txt')
     config = Config()
     config.dropout = args.dropout
     config.score = args.score
@@ -200,12 +200,12 @@ if __name__ == "__main__":
              'mo', str(args.momentum),
              's', str(args.seed),
              'op', str(args.optimizer),
-             'lo', str(args.loss_type),]) + '_TATransE.ckpt'
+             'lo', str(args.loss_type),]) + '_TransE.ckpt'
     path_name = os.path.join('./model/' + args.dataset, filename)
     if os.path.exists(path_name):
         model = torch.load(path_name)
     else:
-        model = model.TATransEModel(config)
+        model = model.TransEModel(config)
 
     if USE_CUDA:
         model.cuda()
@@ -226,10 +226,10 @@ if __name__ == "__main__":
             random.shuffle(trainBatchList)
             for batchList in trainBatchList:
                 if config.filter == True:
-                    pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_filter_all(batchList,
+                    pos_h_batch, pos_t_batch, pos_r_batch, neg_h_batch, neg_t_batch, neg_r_batch = getBatch_filter_all_tri(batchList,
                         config.entity_total, tripleDict)
                 else:
-                    pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch = getBatch_raw_all(batchList,
+                    pos_h_batch, pos_t_batch, pos_r_batch, neg_h_batch, neg_t_batch, neg_r_batch = getBatch_raw_all_tri(batchList,
                         config.entity_total)
 
                 batch_entity_set = set(pos_h_batch + pos_t_batch + neg_h_batch + neg_t_batch)
@@ -240,21 +240,19 @@ if __name__ == "__main__":
                 pos_h_batch = autograd.Variable(longTensor(pos_h_batch))
                 pos_t_batch = autograd.Variable(longTensor(pos_t_batch))
                 pos_r_batch = autograd.Variable(longTensor(pos_r_batch))
-                pos_time_batch = autograd.Variable(longTensor(pos_time_batch))
                 neg_h_batch = autograd.Variable(longTensor(neg_h_batch))
                 neg_t_batch = autograd.Variable(longTensor(neg_t_batch))
                 neg_r_batch = autograd.Variable(longTensor(neg_r_batch))
-                neg_time_batch = autograd.Variable(longTensor(neg_time_batch))
 
                 model.zero_grad()
-                pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, pos_time_batch, neg_h_batch, neg_t_batch, neg_r_batch, neg_time_batch)
+                pos, neg = model(pos_h_batch, pos_t_batch, pos_r_batch, neg_h_batch, neg_t_batch, neg_r_batch)
 
                 if args.loss_type == 0:
                     losses = loss_function(pos, neg, margin)
 
                 ent_embeddings = model.ent_embeddings(torch.cat([pos_h_batch, pos_t_batch, neg_h_batch, neg_t_batch]))
-                rseq_embeddings = model.get_rseq(torch.cat([pos_r_batch, neg_r_batch]), torch.cat([pos_time_batch, neg_time_batch]))
-                losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rseq_embeddings)
+                rel_embeddings = model.rel_embeddings(torch.cat([pos_r_batch, neg_r_batch]))
+                losses = losses + loss.normLoss(ent_embeddings) + loss.normLoss(rel_embeddings)
                 losses.backward()
                 optimizer.step()
                 total_loss += losses.data
@@ -268,34 +266,33 @@ if __name__ == "__main__":
                 torch.save(model, os.path.join('./model/' + args.dataset, filename))
 
     model.eval()
-    testTotal, testList, testDict, testTimes = load_quadruples('./data/' + args.dataset, 'test2id.txt', 'test_tem.npy')
+    testTotal, testList, testDict = loadTriple('./data/' + args.dataset, 'test2id.txt')
     # testBatchList = getBatchList(testList, config.num_batches)
     # testBatchList = getBatchList(testList, config.batch_size)
 
     ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
+    rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
     L1_flag = model.L1_flag
     filter = model.filter
 
     # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
 
-    testBatchList = getBatchList(testList, 1)
     dict = {}
-    # for quadruple in testList:
-    for quadruple in testBatchList:
-        head, tail, rel, time = getFourElements(quadruple)
+    for triple in testList:
+        head, tail, rel = getThreeElement(triple)
         tri_sign = str(head)+'_'+str(rel)+'_'+str(tail)
         if tri_sign not in dict:
             dict[tri_sign] = []
-        # tmplist = []
-        # tmplist.append(quadruple)
-        rankList = evaluation_batch(quadruple, tripleDict, dict, model, ent_embeddings, L1_flag, filter, head=0)
-        dict[tri_sign].append(rankList)
+        tmplist = []
+        tmplist.append(triple)
+        rankList = evaluation_batch(tmplist, tripleDict, dict, model, ent_embeddings, rel_embeddings, L1_flag, filter, head=0)
+        dict[tri_sign].append(rankList[0])
 
-    total_ranks = np.array([])
+    total_ranks = []
     for rankListArray in dict.values():
-        real_rankList = np.mean(rankListArray)
-        total_ranks = np.concatenate((total_ranks, real_rankList))
-
+        real_rankList = np.mean(rankListArray) + 1
+        total_ranks.append(real_rankList)
+    total_ranks = np.array(total_ranks)
     meanrerankTest = np.mean(1.0 / total_ranks)
     meanrankTest = np.mean(total_ranks)
     hits = []

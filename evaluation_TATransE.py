@@ -102,8 +102,6 @@ def pairwise_L2_distances(A, B):
 def evaluation_helper(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, head=0):
     # embeddings are numpy likre
     headList, tailList, relList, timeList = getFourElements(testList)
-    print(np.array(headList).shape)
-    print(np.array(timeList).shape)
     h_e = ent_embeddings[headList]
     t_e = ent_embeddings[tailList]
 
@@ -142,13 +140,14 @@ def evaluation_helper(testList, tripleDict, dict, model, ent_embeddings, L1_flag
         rankListHead = [argwhereHead(elem[0], elem[1], elem[2], elem[3], tripleDict)
                         for elem in zip(headList, tailList, relList, rankArrayHead)]
 
-    return np.array([rankListHead, rankListTail])
+    # rankList = np.concatenate((rankListHead, rankListTail))
+    return rankListHead, rankListTail
 
 
 def process_data(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, L, head):
-    rankList = evaluation_helper(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, head)
+    rankListHead, rankListTail = evaluation_helper(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, head)
 
-    L.append((rankList))
+    L.append((rankListHead, rankListTail))
 
 
 # Use multiprocessing to speed up evaluation
@@ -164,9 +163,10 @@ def evaluation(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filte
     process_data(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, L, head)
 
     resultList = list(L)
-    rankList = resultList
+    rankListHead = [elem[0] for elem in resultList]
+    rankListTail = [elem[1] for elem in resultList]
 
-    return rankList
+    return rankListHead, rankListTail
 
 
 def evaluation_batch(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, k=0, head=0):
@@ -181,6 +181,7 @@ def evaluation_batch(testList, tripleDict, dict, model, ent_embeddings, L1_flag,
     process_data(testList, tripleDict, dict, model, ent_embeddings, L1_flag, filter, L, head)
 
     resultList = list(L)
-    rankList = resultList
+    rankListHead = [elem[0] for elem in resultList]
+    rankListTail = [elem[1] for elem in resultList]
 
-    return rankList
+    return rankListHead, rankListTail

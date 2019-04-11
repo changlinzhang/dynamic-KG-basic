@@ -9,7 +9,8 @@ tem_dict = {
     '0d': 22, '1d': 23, '2d': 24, '3d': 25, '4d': 26, '5d': 27, '6d': 28, '7d': 29, '8d': 30, '9d': 31,
 }
 
-dir = "data/ICEWS18/"
+# dir = "data/wiki/"
+dir = "data/yago/"
 
 count = 0
 
@@ -23,18 +24,12 @@ def preprocess(data_part):
             count += 1
             info = line.strip().split("\t")
 
-            year, month, day = info[3].split("-")
+            prefix = int(info[3])
+            year = info[4]
             tem_id_list = []
+            tem_id_list.append(prefix)
             for j in range(len(year)):
                 token = year[j:j+1]+'y'
-                tem_id_list.append(tem_dict[token])
-
-            for j in range(1):
-                token = month+'m'
-                tem_id_list.append(tem_dict[token])
-
-            for j in range(len(day)):
-                token = day[j:j+1]+'d'
                 tem_id_list.append(tem_dict[token])
 
             tem.append(tem_id_list)
@@ -42,4 +37,5 @@ def preprocess(data_part):
     np.save(tem_write_path, np_tem)
 
 preprocess("train")
+preprocess("valid")
 preprocess("test")

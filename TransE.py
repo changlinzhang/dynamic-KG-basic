@@ -302,7 +302,7 @@ if __name__ == "__main__":
     total_head_ranks = np.array(total_head_ranks)
     total_tail_ranks = np.array(total_tail_ranks)
     total_ranks = np.concatenate((total_head_ranks, total_tail_ranks))
-    print(len(total_ranks))
+    print(total_ranks)
     meanrerankTest = np.mean(1.0 / total_ranks)
     meanrankTest = np.mean(total_ranks)
     hits = []

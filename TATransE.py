@@ -75,6 +75,8 @@ class Config(object):
         self.entity_total = 0
         self.relation_total = 0
         self.batch_size = 0
+        self.tem_total = 32
+        self.prefix_total = 2
 
 
 if __name__ == "__main__":
@@ -124,6 +126,15 @@ if __name__ == "__main__":
     config.dataset = args.dataset
     config.learning_rate = args.learning_rate
 
+    if args.dataset == "GDELT":
+        config.tem_total = 46
+    if args.dataset == "ICEWS18":
+        config.tem_total = 32
+    if args.dataset == "wiki":
+        config.tem_total = 10
+    if args.dataset == "yago":
+        config.tem_total = 10
+
     config.early_stopping_round = args.early_stopping_round
 
     if args.L1_flag == 1:
@@ -170,18 +181,6 @@ if __name__ == "__main__":
         'optimizer': args.optimizer,
         'loss_type': args.loss_type,
         }
-
-    trainHyperparameters = shareHyperparameters.copy()
-    trainHyperparameters.update({'type': 'train_loss'})
-
-    validHyperparameters = shareHyperparameters.copy()
-    validHyperparameters.update({'type': 'valid_loss'})
-
-    hit10Hyperparameters = shareHyperparameters.copy()
-    hit10Hyperparameters.update({'type': 'hit10'})
-
-    meanrankHyperparameters = shareHyperparameters.copy()
-    meanrankHyperparameters.update({'type': 'mean_rank'})
 
     loss_function = config.loss_function()
 
@@ -278,23 +277,32 @@ if __name__ == "__main__":
 
     # hit1Test, hit3Test, hit10Test, meanrankTest, meanrerankTest= evaluation(testList, tripleDict, model, ent_embeddings, L1_flag, filter, head=0)
 
-    testBatchList = getBatchList(testList, 1)
-    dict = {}
-    # for quadruple in testList:
-    for quadruple in testBatchList:
-        head, tail, rel, time = getFourElements(quadruple)
+    head_dict = {}
+    tail_dict = {}
+    for quadruple in testList:
+        head, tail, rel, time = getFourElement(quadruple)
         tri_sign = str(head)+'_'+str(rel)+'_'+str(tail)
-        if tri_sign not in dict:
-            dict[tri_sign] = []
-        # tmplist = []
-        # tmplist.append(quadruple)
-        rankList = evaluation_batch(quadruple, tripleDict, dict, model, ent_embeddings, L1_flag, filter, head=0)
-        dict[tri_sign].append(rankList)
+        if tri_sign not in head_dict:
+            head_dict[tri_sign] = []
+            tail_dict[tri_sign] = []
+        tmplist = []
+        tmplist.append(quadruple)
+        rankhead, ranktail = evaluation_batch(tmplist, tripleDict, dict, model, ent_embeddings, L1_flag, filter, head=0)
+        head_dict[tri_sign].append(rankhead[0])
+        tail_dict[tri_sign].append(ranktail[0])
 
-    total_ranks = np.array([])
-    for rankListArray in dict.values():
-        real_rankList = np.mean(rankListArray)
-        total_ranks = np.concatenate((total_ranks, real_rankList))
+    total_head_ranks = []
+    total_tail_ranks = []
+    for rankHeadList in head_dict.values():
+        real_rankHead = np.mean(rankHeadList) + 1
+        total_head_ranks.append(real_rankHead)
+    for rankTailList in head_dict.values():
+        real_rankTail = np.mean(rankTailList) + 1
+        total_tail_ranks.append(real_rankTail)
+    total_head_ranks = np.array(total_head_ranks)
+    total_tail_ranks = np.array(total_tail_ranks)
+    total_ranks = np.concatenate((total_head_ranks, total_tail_ranks))
+    print(len(total_ranks))
 
     meanrerankTest = np.mean(1.0 / total_ranks)
     meanrankTest = np.mean(total_ranks)

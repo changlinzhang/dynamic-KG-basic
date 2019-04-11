@@ -85,7 +85,8 @@ class TADistmultModel(nn.Module):
 		self.embedding_size = config.embedding_size
 		self.entity_total = config.entity_total
 		self.relation_total = config.relation_total
-		self.tem_total = config.tem_total # 32
+		self.tem_total = config.tem_total
+		self.prefix_total = config.prefix_total
 		self.batch_size = config.batch_size
 
 		self.criterion = nn.Softplus()
@@ -97,23 +98,29 @@ class TADistmultModel(nn.Module):
 		ent_weight = floatTensor(self.entity_total, self.embedding_size)
 		rel_weight = floatTensor(self.relation_total, self.embedding_size)
 		tem_weight = floatTensor(self.tem_total, self.embedding_size)
+		prefix_weight = floatTensor(self.prefix_total, self.embedding_size)
 		# Use xavier initialization method to initialize embeddings of entities and relations
 		nn.init.xavier_uniform(ent_weight)
 		nn.init.xavier_uniform(rel_weight)
 		nn.init.xavier_uniform(tem_weight)
+		nn.init.xavier_uniform(prefix_weight)
 		self.ent_embeddings = nn.Embedding(self.entity_total, self.embedding_size)
 		self.rel_embeddings = nn.Embedding(self.relation_total, self.embedding_size)
 		self.tem_embeddings = nn.Embedding(self.tem_total, self.embedding_size)
+		self.prefix_embeddings = nn.Embedding(self.prefix_total, self.embedding_size)
 		self.ent_embeddings.weight = nn.Parameter(ent_weight)
 		self.rel_embeddings.weight = nn.Parameter(rel_weight)
 		self.tem_embeddings.weight = nn.Parameter(tem_weight)
+		self.prefix_embeddings.weight = nn.Parameter(prefix_weight)
 
 		normalize_entity_emb = F.normalize(self.ent_embeddings.weight.data, p=2, dim=1)
 		normalize_relation_emb = F.normalize(self.rel_embeddings.weight.data, p=2, dim=1)
 		normalize_temporal_emb = F.normalize(self.tem_embeddings.weight.data, p=2, dim=1)
+		normalize_prefix_emb = F.normalize(self.prefix_embeddings.weight.data, p=2, dim=1)
 		self.ent_embeddings.weight.data = normalize_entity_emb
 		self.rel_embeddings.weight.data = normalize_relation_emb
 		self.tem_embeddings.weight.data = normalize_temporal_emb
+		self.prefix_embeddings.weight.data = normalize_prefix_emb
 
 	def scoring(self, h, t, r):
 		return torch.sum(h * t * r, 1, False)
@@ -142,13 +149,19 @@ class TADistmultModel(nn.Module):
 		pos_r_e = self.rel_embeddings(pos_r)
 		pos_r_e = pos_r_e.unsqueeze(0).transpose(0, 1)
 
-		bs = pos_tem.shape[0] # batch size
+		pos_prefix = pos_tem[:, :1]
+		pos_tem = pos_tem[:, 1:].contiguous()
+
+		pos_prefix_e = self.prefix_embeddings(pos_prefix)
+
+		bs = pos_tem.shape[0]  # batch size
 		tem_len = pos_tem.shape[1]
-		pos_tem = pos_tem.contiguous()
 		pos_tem = pos_tem.view(bs * tem_len)
 		token_e = self.tem_embeddings(pos_tem)
 		token_e = token_e.view(bs, tem_len, self.embedding_size)
-		pos_seq_e = torch.cat((pos_r_e, token_e), 1)
+		# pos_seq_e = torch.cat((pos_r_e, token_e), 1)
+		pos_seq_e = torch.cat((pos_r_e, pos_prefix_e), 1)
+		pos_seq_e = torch.cat((pos_seq_e, token_e), 1)
 
 		hidden_tem = self.lstm(pos_seq_e)
 		hidden_tem = hidden_tem[0, :, :]
@@ -224,7 +237,8 @@ class TATransEModel(nn.Module):
 		self.embedding_size = config.embedding_size
 		self.entity_total = config.entity_total
 		self.relation_total = config.relation_total
-		self.tem_total = 32
+		self.tem_total = config.tem_total
+		self.prefix_total = config.prefix_total
 		self.batch_size = config.batch_size
 
 		self.dropout = nn.Dropout(config.dropout)
@@ -233,23 +247,29 @@ class TATransEModel(nn.Module):
 		ent_weight = floatTensor(self.entity_total, self.embedding_size)
 		rel_weight = floatTensor(self.relation_total, self.embedding_size)
 		tem_weight = floatTensor(self.tem_total, self.embedding_size)
+		prefix_weight = floatTensor(self.prefix_total, self.embedding_size)
 		# Use xavier initialization method to initialize embeddings of entities and relations
 		nn.init.xavier_uniform(ent_weight)
 		nn.init.xavier_uniform(rel_weight)
 		nn.init.xavier_uniform(tem_weight)
+		nn.init.xavier_uniform(prefix_weight)
 		self.ent_embeddings = nn.Embedding(self.entity_total, self.embedding_size)
 		self.rel_embeddings = nn.Embedding(self.relation_total, self.embedding_size)
 		self.tem_embeddings = nn.Embedding(self.tem_total, self.embedding_size)
+		self.prefix_embeddings = nn.Embedding(self.prefix_total, self.embedding_size)
 		self.ent_embeddings.weight = nn.Parameter(ent_weight)
 		self.rel_embeddings.weight = nn.Parameter(rel_weight)
 		self.tem_embeddings.weight = nn.Parameter(tem_weight)
+		self.prefix_embeddings.weight = nn.Parameter(prefix_weight)
 
 		normalize_entity_emb = F.normalize(self.ent_embeddings.weight.data, p=2, dim=1)
 		normalize_relation_emb = F.normalize(self.rel_embeddings.weight.data, p=2, dim=1)
 		normalize_temporal_emb = F.normalize(self.tem_embeddings.weight.data, p=2, dim=1)
+		normalize_prefix_emb = F.normalize(self.prefix_embeddings.weight.data, p=2, dim=1)
 		self.ent_embeddings.weight.data = normalize_entity_emb
 		self.rel_embeddings.weight.data = normalize_relation_emb
 		self.tem_embeddings.weight.data = normalize_temporal_emb
+		self.prefix_embeddings.weight.data = normalize_prefix_emb
 
 	def forward(self, pos_h, pos_t, pos_r, pos_tem, neg_h, neg_t, neg_r, neg_tem):
 		pos_h_e = self.ent_embeddings(pos_h)
@@ -276,16 +296,23 @@ class TATransEModel(nn.Module):
 			neg = torch.sum((neg_h_e + neg_rseq_e - neg_t_e) ** 2, 1)
 		return pos, neg
 
-	def get_rseq(self, pos_r, pos_tem, unroll_len=4):
+	def get_rseq(self, pos_r, pos_tem):
 		pos_r_e = self.rel_embeddings(pos_r)
 		pos_r_e = pos_r_e.unsqueeze(0).transpose(0, 1)
+
+		pos_prefix = pos_tem[:, :1]
+		pos_tem = pos_tem[:, 1:].contiguous()
+
+		pos_prefix_e = self.prefix_embeddings(pos_prefix)
 
 		bs = pos_tem.shape[0] # batch size
 		tem_len = pos_tem.shape[1]
 		pos_tem = pos_tem.view(bs * tem_len)
 		token_e = self.tem_embeddings(pos_tem)
 		token_e = token_e.view(bs, tem_len, self.embedding_size)
-		pos_seq_e = torch.cat((pos_r_e, token_e), 1)
+		# pos_seq_e = torch.cat((pos_r_e, token_e), 1)
+		pos_seq_e = torch.cat((pos_r_e, pos_prefix_e), 1)
+		pos_seq_e = torch.cat((pos_seq_e, token_e), 1)
 
 		hidden_tem = self.lstm(pos_seq_e)
 		hidden_tem = hidden_tem[0, :, :]
